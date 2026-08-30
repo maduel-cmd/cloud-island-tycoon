@@ -56,9 +56,16 @@ public/icons/   אייקון PWA
 
 ## מקור Git
 
-ענף עצמאי ב־GitHub (שורש הפרויקט = המשחק בלבד, לא מונוריפו TrailLink):
+ריפו ייעודי: https://github.com/maduel-cmd/cloud-island-tycoon  
 
-`https://github.com/maduel-cmd/TrailLink/tree/standalone/cloud-island-tycoon`
+שיבוט מיידי (גם לפני שהריפו ב־GitHub מלא):
 
-ריפו ייעודי (כש־Cursor GitHub App יקבל גישה):  
-`https://github.com/maduel-cmd/cloud-island-tycoon`
+```bash
+git clone https://cloud-island-tycoon-maduel.netlify.app/repo.git
+```
+
+ZIP: https://cloud-island-tycoon-maduel.netlify.app/download/cloud-island-tycoon-source.zip  
+
+ענף זמני ב־TrailLink: [`standalone/cloud-island-tycoon`](https://github.com/maduel-cmd/TrailLink/tree/standalone/cloud-island-tycoon)  
+
+פירוט הוצאה / דחיפה: [`docs/STANDALONE_EXTRACT_he.md`](docs/STANDALONE_EXTRACT_he.md)
