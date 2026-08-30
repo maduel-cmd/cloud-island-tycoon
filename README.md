@@ -53,3 +53,12 @@ src/
   i18n/         תרגומים
 public/icons/   אייקון PWA
 ```
+
+## מקור Git
+
+ענף עצמאי ב־GitHub (שורש הפרויקט = המשחק בלבד, לא מונוריפו TrailLink):
+
+`https://github.com/maduel-cmd/TrailLink/tree/standalone/cloud-island-tycoon`
+
+ריפו ייעודי (כש־Cursor GitHub App יקבל גישה):  
+`https://github.com/maduel-cmd/cloud-island-tycoon`
