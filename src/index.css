@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  /* WoW-inspired fantasy palette (original — not Blizzard assets) */
+  --wow-bg: #0c0a08;
+  --wow-panel: #1a1410;
+  --wow-panel-2: #241c14;
+  --wow-border: #8b6914;
+  --wow-gold: #e8c547;
+  --wow-gold-dim: #a67c1a;
+  --wow-parchment: #e8d5a8;
+  --wow-text: #f3e6c8;
+  --wow-muted: #a89878;
+  --wow-hp: #2d8f3a;
+  --wow-mana: #2a5cad;
+  --wow-xp: #7a3bb8;
+  --sky-deep: #1a120b;
+  --sky-mid: #3d2a12;
+  --grass: #3d6b28;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: Heebo, "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(ellipse at 50% 20%, #2a1f14 0%, #0c0a08 70%);
+  color: var(--wow-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .wow-frame {
+    background:
+      linear-gradient(180deg, rgba(36, 28, 20, 0.94) 0%, rgba(18, 14, 10, 0.96) 100%);
+    border: 2px solid var(--wow-border);
+    box-shadow:
+      0 0 0 1px rgba(232, 197, 71, 0.25),
+      0 12px 40px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(232, 197, 71, 0.18);
+  }
+
+  .wow-frame-gold {
+    border-image: linear-gradient(180deg, #f0d78c, #8b6914 45%, #5c4010) 1;
+  }
+
+  .glass-panel {
+    @apply wow-frame rounded-md text-[color:var(--wow-text)];
+  }
+
+  .glass-hud {
+    @apply wow-frame rounded-md;
+  }
+
+  .build-bank-panel {
+    background: linear-gradient(165deg, #2a2016 0%, #1a1410 55%, #120e0a 100%);
+    border: 2px solid var(--wow-border);
+    box-shadow:
+      0 24px 64px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(232, 197, 71, 0.2);
+  }
+
+  .btn-chip {
+    @apply rounded border border-[color:var(--wow-border)] bg-[#2a2018] px-2.5 py-1.5 text-sm font-semibold text-[color:var(--wow-parchment)] transition hover:bg-[#3a2c1c] hover:text-[color:var(--wow-gold)];
+  }
+
+  .btn-primary {
+    @apply rounded border-2 border-[color:var(--wow-gold)] bg-gradient-to-b from-[#6b4e16] to-[#3d2a0a] px-3 py-2 text-sm font-bold text-[color:var(--wow-gold)] shadow transition hover:brightness-110 active:scale-[0.98];
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+
+  .wow-action-slot {
+    @apply relative flex h-14 w-14 flex-col items-center justify-center rounded border-2 border-[color:var(--wow-gold-dim)] bg-gradient-to-b from-[#3a2c1c] to-[#1a120b] text-[color:var(--wow-parchment)] transition hover:border-[color:var(--wow-gold)] hover:brightness-110;
+    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.55);
+  }
+
+  .wow-action-slot-active {
+    @apply border-[color:var(--wow-gold)] from-[#5a4018] to-[#2a1c0a];
+    box-shadow:
+      0 0 12px rgba(232, 197, 71, 0.45),
+      inset 0 0 12px rgba(0, 0, 0, 0.4);
+  }
+
+  .wow-resource {
+    @apply flex items-center gap-1.5 rounded border border-[color:var(--wow-border)] bg-[#120e0a]/90 px-2 py-1;
+  }
+
+  .wow-bar-track {
+    @apply h-2.5 overflow-hidden rounded-sm border border-black/60 bg-black/70;
+  }
+
+  .wow-title {
+    font-family: Cinzel, Heebo, "Segoe UI", sans-serif;
+    color: var(--wow-gold);
+    text-shadow: 0 0 8px rgba(232, 197, 71, 0.35), 0 2px 4px rgba(0, 0, 0, 0.8);
+    letter-spacing: 0.02em;
+  }
+}
+
+/* Custom scrollbar — dark fantasy */
+aside ::-webkit-scrollbar {
+  width: 8px;
+}
+aside ::-webkit-scrollbar-track {
+  background: #0c0a08;
+}
+aside ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #c9a227, #5c4010);
+  border-radius: 2px;
+}
