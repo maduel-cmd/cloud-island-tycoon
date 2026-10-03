@@ -73,12 +73,15 @@ export type ThreeParkHandle = {
   zoomBy: (factor: number, clientX?: number, clientY?: number) => void;
   getZoom: () => number;
   onZoomChange: (fn: (z: number) => void) => () => void;
-  beginPinch: (dist: number) => void;
-  pinch: (dist: number, midClientX?: number, midClientY?: number) => void;
+  beginPinch: (dist: number, angle: number) => void;
+  /** Two-finger move — pinch zooms; twist rotates the park camera around the target */
+  pinch: (dist: number, angle: number) => void;
   endPinch: () => void;
   setHover: (p: GridPos | null) => void;
   /** הזזת מטרה יחסית (WASD) בכיוון המצלמה */
   nudge: (forward: number, right: number) => void;
+  /** Finger wind (legacy): ground mist removed — cirrus is sky-only. */
+  blowCloudsAt: (clientX: number, clientY: number) => boolean;
 };
 
 const TILE_COLORS: Record<string, number> = {
@@ -424,6 +427,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   let dragMode: DragMode = "orbit";
   let lastMouse = { x: 0, y: 0 };
   let pinchDist = 0;
+  let pinchAngle = 0;
   const raycaster = new THREE.Raycaster();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const hit = new THREE.Vector3();
@@ -1266,13 +1270,12 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         orbitYaw += dx * 0.0055;
         orbitPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, orbitPitch - dy * 0.004));
       } else {
-        // Grab-the-park pan: world stays under the finger (right and down).
-        // forward = toward camera on ground; screen-right = `right`.
+        // One-finger pan: finger moves right → view follows right (not inverted)
         const radius = BASE_RADIUS / zoom;
         const scale = radius * 0.0026;
         const forward = new THREE.Vector3(Math.sin(orbitYaw), 0, Math.cos(orbitYaw));
         const right = new THREE.Vector3(Math.cos(orbitYaw), 0, -Math.sin(orbitYaw));
-        camTarget.addScaledVector(right, -dx * scale);
+        camTarget.addScaledVector(right, dx * scale);
         camTarget.addScaledVector(forward, -dy * scale);
       }
       updateCamera();
@@ -1291,21 +1294,31 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       zoomListeners.add(fn);
       return () => zoomListeners.delete(fn);
     },
-    beginPinch: (dist) => {
+    beginPinch: (dist, angle) => {
       pinchDist = dist;
+      pinchAngle = angle;
     },
-    pinch: (dist, midClientX, midClientY) => {
+    pinch: (dist, angle) => {
       if (pinchDist <= 0) {
         pinchDist = dist;
+        pinchAngle = angle;
         return;
       }
-      const factor = dist / pinchDist;
+      zoom = clampZoom(zoom * (dist / pinchDist));
       pinchDist = dist;
-      zoomToward(factor, midClientX, midClientY);
+      let dAng = angle - pinchAngle;
+      while (dAng > Math.PI) dAng -= Math.PI * 2;
+      while (dAng < -Math.PI) dAng += Math.PI * 2;
+      orbitYaw -= dAng;
+      pinchAngle = angle;
+      updateCamera();
+      emitZoom();
     },
     endPinch: () => {
       pinchDist = 0;
+      pinchAngle = 0;
     },
+    blowCloudsAt: (_clientX, _clientY) => false,
     nudge: (forwardAmt, rightAmt) => {
       // Positive forward = into the park (away from camera). `forward` vec points toward camera.
       const towardCamera = new THREE.Vector3(Math.sin(orbitYaw), 0, Math.cos(orbitYaw));

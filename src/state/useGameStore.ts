@@ -38,7 +38,12 @@ export function useGameStore(): SimState & {
   clearSelection: () => void;
   selectEntity: (kind: "attraction" | "stall" | "staff", id: string) => void;
   fireStaff: (id: string) => boolean;
-  confirmDayClose: () => boolean;
+  nightWageCost: () => number;
+  setTicketGateFee: (fee: number) => void;
+  confirmDayEnd: (skipWagesWithGem: boolean) => void;
+  restartPark: () => void;
+  bootstrapClockHeld: () => boolean;
+  hasOutboundPathFromGate: () => boolean;
 } {
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
@@ -60,7 +65,12 @@ export function useGameStore(): SimState & {
     clearSelection: () => simulation.clearSelection(),
     selectEntity: (kind, id) => simulation.selectEntity(kind, id),
     fireStaff: (id) => simulation.fireStaff(id),
-    confirmDayClose: () => simulation.confirmDayClose(),
+    nightWageCost: () => simulation.nightWageCost(),
+    setTicketGateFee: (fee) => simulation.setTicketGateFee(fee),
+    confirmDayEnd: (skip) => simulation.confirmDayEnd(skip),
+    restartPark: () => simulation.restartPark(),
+    bootstrapClockHeld: () => simulation.bootstrapClockHeld(),
+    hasOutboundPathFromGate: () => simulation.hasOutboundPathFromGate(),
   };
 }
 

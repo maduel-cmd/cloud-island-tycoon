@@ -22,7 +22,8 @@ export function LoopGoalsHud() {
   goals.stockedStall = store.stalls.some((s) => s.stock > 0);
 
   const allDone = goals.path && goals.ride && goals.stockedStall;
-  if (allDone && store.operationsStarted) return null;
+  const clockHeld = store.bootstrapClockHeld();
+  if (allDone && !clockHeld) return null;
 
   const rows: { id: keyof typeof goals; label: string; done: boolean }[] = [
     { id: "path", label: t("goalPath"), done: goals.path },
@@ -55,7 +56,7 @@ export function LoopGoalsHud() {
             </li>
           ))}
         </ul>
-        {!store.operationsStarted && (
+        {clockHeld && (
           <p className="mt-1.5 text-[10px] text-[color:var(--wow-muted)]">{t("goalsClockHint")}</p>
         )}
       </div>

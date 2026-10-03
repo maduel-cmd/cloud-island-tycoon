@@ -12,12 +12,13 @@ import {
   decorDisplayName,
   utilDisplayName,
 } from "../../i18n/names";
+import { GAME_STATIC_ASSETS } from "../../config/assets";
 
-type BankTab = "thrill" | "family" | "stalls" | "utilities";
+type BankTab = "thrill" | "family" | "stalls" | "paths" | "utilities";
 
 type BankCard = {
   id: string;
-  kind: "attraction" | "stall" | "util";
+  kind: "attraction" | "stall" | "path" | "util";
   name: string;
   nameEn: string;
   cost: number;
@@ -34,12 +35,21 @@ type BankCard = {
   staffNeeded: number;
   footprint: string;
   freeKit?: boolean;
+  /** Transparent card art from public/assets/ui/cards */
+  artSrc?: string;
 };
+
+function cardArtFor(id: string): string | undefined {
+  if (id === "grand_carousel") return GAME_STATIC_ASSETS.CARD_CAROUSEL?.src;
+  if (id === "cotton_candy") return GAME_STATIC_ASSETS.CARD_COTTON_CANDY?.src;
+  return undefined;
+}
 
 const TAB_META: { id: BankTab; icon: string; labelKey: string }[] = [
   { id: "thrill", icon: "🎢", labelKey: "coasters" },
   { id: "family", icon: "👨‍👩‍👧‍👦", labelKey: "family" },
   { id: "stalls", icon: "🍿", labelKey: "stalls" },
+  { id: "paths", icon: "🛤️", labelKey: "paths" },
   { id: "utilities", icon: "🚻", labelKey: "utilities" },
 ];
 
@@ -88,14 +98,16 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           staffNeeded: 1,
           footprint: "1×1",
           freeKit: free,
+          artSrc: cardArtFor(s.id),
         };
       });
     }
-    if (tab === "utilities") {
-      const items: BankCard[] = [
+    if (tab === "paths") {
+      // Roads/paths to lay out — not standalone service buildings
+      return [
         {
           id: "path",
-          kind: "util",
+          kind: "path" as const,
           name: utilDisplayName("path", locale),
           nameEn: "Paved Path",
           cost: 40,
@@ -104,13 +116,17 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           tier: 1,
           locked: false,
           unlockHint: "",
-          shape: "util",
+          shape: "path" as ThumbShape,
           look: resolveBankLook("util", "path"),
           moodEffect: 2,
           incomeHint: 0,
           staffNeeded: 0,
           footprint: "1×1",
         },
+      ];
+    }
+    if (tab === "utilities") {
+      const items: BankCard[] = [
         {
           id: "bin",
           kind: "util",
@@ -122,7 +138,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           tier: 1,
           locked: false,
           unlockHint: "",
-          shape: "util",
+          shape: "bin" as ThumbShape,
           look: resolveBankLook("util", "bin"),
           moodEffect: 6,
           incomeHint: 0,
@@ -141,7 +157,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           tier: 1,
           locked: false,
           unlockHint: "",
-          shape: "util",
+          shape: "bench" as ThumbShape,
           look: resolveBankLook("util", "bench"),
           moodEffect: 5,
           incomeHint: 0,
@@ -159,7 +175,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           tier: 1,
           locked: false,
           unlockHint: "",
-          shape: "util",
+          shape: "parking" as ThumbShape,
           look: resolveBankLook("util", "parking"),
           moodEffect: 1,
           incomeHint: 0,
@@ -177,7 +193,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           tier: 1,
           locked: store.warehouseBuilt,
           unlockHint: store.warehouseBuilt ? t("builtAlready") : "",
-          shape: "util",
+          shape: "warehouse" as ThumbShape,
           look: resolveBankLook("util", "warehouse"),
           moodEffect: 0,
           incomeHint: 0,
@@ -195,7 +211,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           tier: 1,
           locked: false,
           unlockHint: "",
-          shape: "util",
+          shape: "hire" as ThumbShape,
           look: resolveBankLook("util", "hire_janitor"),
           moodEffect: 10,
           incomeHint: 0,
@@ -214,7 +230,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           tier: 1,
           locked: false,
           unlockHint: "",
-          shape: "util",
+          shape: "hire" as ThumbShape,
           look: resolveBankLook("util", "hire_runner"),
           moodEffect: 4,
           incomeHint: 0,
@@ -233,7 +249,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           tier: 1,
           locked: store.parkLevel < 2,
           unlockHint: unlockLabel(2),
-          shape: "util",
+          shape: "hire" as ThumbShape,
           look: resolveBankLook("util", "hire_mechanic"),
           moodEffect: 8,
           incomeHint: 0,
@@ -292,6 +308,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
         staffNeeded: a.footprint.w >= 3 ? 2 : 1,
         footprint: `${a.footprint.w}×${a.footprint.h}`,
         freeKit: free,
+        artSrc: cardArtFor(a.id),
       };
     });
   }, [tab, store.parkLevel, store.starterKit, store.warehouseBuilt, locale, t]);
@@ -306,37 +323,39 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
 
   if (!open) return null;
 
-  const place = () => {
-    if (!selected || selected.locked) return;
-    if (selected.id === "hire_janitor") {
+  const placeCard = (card: BankCard | undefined) => {
+    if (!card || card.locked) return;
+    if (card.id === "hire_janitor") {
       store.hireStaff("janitor");
       onClose();
       return;
     }
-    if (selected.id === "hire_runner") {
+    if (card.id === "hire_runner") {
       store.hireStaff("runner");
       onClose();
       return;
     }
-    if (selected.id === "hire_mechanic") {
+    if (card.id === "hire_mechanic") {
       store.hireStaff("mechanic");
       onClose();
       return;
     }
-    if (selected.id.startsWith("decor:")) {
-      store.setBuildMode("decor", selected.id.replace("decor:", ""));
+    if (card.id.startsWith("decor:")) {
+      store.setBuildMode("decor", card.id.replace("decor:", ""));
       onClose();
       return;
     }
-    if (selected.kind === "attraction") store.setBuildMode("attraction", selected.id);
-    else if (selected.kind === "stall") store.setBuildMode("stall", selected.id);
-    else if (selected.id === "path") store.setBuildMode("path");
-    else if (selected.id === "bin") store.setBuildMode("bin");
-    else if (selected.id === "bench") store.setBuildMode("bench");
-    else if (selected.id === "parking") store.setBuildMode("parking");
-    else if (selected.id === "warehouse") store.setBuildMode("warehouse");
+    if (card.kind === "attraction") store.setBuildMode("attraction", card.id);
+    else if (card.kind === "stall") store.setBuildMode("stall", card.id);
+    else if (card.kind === "path" || card.id === "path") store.setBuildMode("path");
+    else if (card.id === "bin") store.setBuildMode("bin");
+    else if (card.id === "bench") store.setBuildMode("bench");
+    else if (card.id === "parking") store.setBuildMode("parking");
+    else if (card.id === "warehouse") store.setBuildMode("warehouse");
     onClose();
   };
+
+  const place = () => placeCard(selected);
 
   return (
     <div className="absolute inset-0 z-[55] flex items-end justify-center sm:items-center" dir={dir}>
@@ -396,7 +415,12 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                   key={c.id}
                   type="button"
                   data-testid={`bank-card-${c.id}`}
-                  onClick={() => setSelectedId(c.id)}
+                  onClick={() => {
+                    setSelectedId(c.id);
+                    if (typeof window !== "undefined" && window.innerWidth < 640 && !c.locked) {
+                      placeCard(c);
+                    }
+                  }}
                   className={`relative flex flex-col items-center rounded border-2 bg-[#1a1410]/90 p-2 text-center transition ${
                     active
                       ? "border-[color:var(--wow-gold)] shadow-[0_0_0_2px_rgba(232,197,71,0.35)]"
@@ -411,6 +435,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                     size={96}
                     lookKind={c.look?.kind}
                     lookId={c.look?.id}
+                    artSrc={c.artSrc}
                   />
                   <div className="mt-1.5 line-clamp-2 text-[11px] font-bold leading-tight text-[color:var(--wow-parchment)] sm:text-xs">
                     {c.name}
@@ -443,6 +468,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                     size={140}
                     lookKind={selected.look?.kind}
                     lookId={selected.look?.id}
+                    artSrc={selected.artSrc}
                   />
                 </div>
                 <h3 className="wow-title mt-3 text-center text-lg font-bold">
@@ -479,7 +505,9 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                 >
                   {selected.locked
                     ? selected.unlockHint || t("locked")
-                    : t("buildNow")}
+                    : selected.kind === "path"
+                      ? t("layPath")
+                      : t("buildNow")}
                 </button>
               </>
             )}
@@ -510,10 +538,11 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           <button
             type="button"
             className="btn-primary w-full py-3 text-base disabled:opacity-50"
+            data-testid="bank-place-btn"
             disabled={!selected || selected.locked}
             onClick={place}
           >
-            {selected?.locked ? t("locked") : t("buildNow")}
+            {selected?.locked ? t("locked") : selected?.kind === "path" ? t("layPath") : t("buildNow")}
           </button>
         </div>
       </div>

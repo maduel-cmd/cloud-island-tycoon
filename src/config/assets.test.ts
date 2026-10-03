@@ -17,8 +17,17 @@ describe("asset bank config", () => {
     assert.ok(GAME_STATIC_ASSETS.PARK_MAP_ISOMETRIC?.src.includes("park-map-isometric"));
     assert.ok(GAME_STATIC_ASSETS.BALLOON_VENDOR_TILE?.src.includes("balloon-vendor-tile"));
     assert.ok(GAME_STATIC_ASSETS.VISITOR_SHEET?.src.includes("visitors/visitor-sheet"));
+    assert.ok(GAME_STATIC_ASSETS.TILE_GRASS?.src.includes("tile-grass"));
+    assert.ok(GAME_STATIC_ASSETS.TILE_PATH?.src.includes("tile-path"));
+    assert.ok(GAME_STATIC_ASSETS.TILE_CLOUD_EDGE?.src.includes("tile-cloud-edge"));
+    assert.ok(GAME_STATIC_ASSETS.CARD_CAROUSEL?.src.includes("card-carousel"));
+    assert.ok(GAME_STATIC_ASSETS.CARD_COTTON_CANDY?.src.includes("card-cotton-candy"));
+    assert.ok(GAME_STATIC_ASSETS.FAB_BUILD?.src.includes("icon-build"));
+    assert.ok(GAME_STATIC_ASSETS.FAB_EXPAND?.src.includes("icon-expand"));
     assert.equal(isAssetReady(GAME_STATIC_ASSETS.BALLOON_VENDOR_TILE!), true);
     assert.equal(isAssetReady(GAME_STATIC_ASSETS.VISITOR_SHEET!), true);
+    assert.equal(isAssetReady(GAME_STATIC_ASSETS.TILE_GRASS!), true);
+    assert.equal(isAssetReady(GAME_STATIC_ASSETS.FAB_QUESTS!), true);
   });
 
   it("treats empty and generated placeholder URLs as not ready", () => {

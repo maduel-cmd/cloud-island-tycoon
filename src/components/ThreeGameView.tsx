@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { keyOf } from "../core/GridSystem";
 import { warmAssetBank } from "../assets/AssetLoader";
-import { warmAllLooks } from "../three/parkLooks";
 import { mountThreePark, type ThreeParkHandle } from "../three/ThreeParkWorld";
 import { simulation } from "../managers/Simulation";
 
@@ -17,7 +16,6 @@ export function ThreeGameView() {
     if (!el) return;
 
     warmAssetBank();
-    warmAllLooks();
     const park = mountThreePark(el);
     let raf = 0;
     let last = performance.now();
@@ -45,10 +43,12 @@ export function ThreeGameView() {
       const pts = [...activePointers.values()];
       if (pts.length < 2) return null;
       const [a, b] = pts;
+      const dx = b!.x - a!.x;
+      const dy = b!.y - a!.y;
       return {
-        dist: Math.hypot(a!.x - b!.x, a!.y - b!.y),
-        mx: (a!.x + b!.x) / 2,
-        my: (a!.y + b!.y) / 2,
+        dist: Math.hypot(dx, dy),
+        /** Screen angle between the two fingers — twist delta rotates the park */
+        angle: Math.atan2(dy, dx),
       };
     };
 
@@ -66,7 +66,7 @@ export function ThreeGameView() {
         cameraDragging = false;
         park.endDrag();
         const p = pinchStats();
-        if (p) park.beginPinch(p.dist);
+        if (p) park.beginPinch(p.dist, p.angle);
         return;
       }
 
@@ -111,7 +111,7 @@ export function ThreeGameView() {
       if (activePointers.size >= 2) {
         pendingTap = null;
         const p = pinchStats();
-        if (p) park.pinch(p.dist, p.mx, p.my);
+        if (p) park.pinch(p.dist, p.angle);
         return;
       }
 
@@ -146,8 +146,9 @@ export function ThreeGameView() {
       activePointers.delete(e.pointerId);
       if (activePointers.size < 2) park.endPinch();
 
-      // הקשה בלי גרירה = לחיצה על משבצת
+      // הקשה בלי גרירה = רוח על ענני ערפל מעל הפארק, ואז לחיצה על משבצת
       if (pendingTap && pendingTap.pointerId === e.pointerId && !cameraDragging) {
+        park.blowCloudsAt(e.clientX, e.clientY);
         const pos = park.screenToGrid(e.clientX, e.clientY);
         simulation.handleTileClick(pos);
       }

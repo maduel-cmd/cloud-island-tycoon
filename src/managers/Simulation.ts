@@ -9,11 +9,13 @@ import { getStall, stallBuildCost, stallPrice, stallStockCap, stallUpgradeCost }
 import type {
   BuildMode,
   DecorKind,
+  GameSnapshot,
   GridPos,
   ParkingSpot,
   PlacedAttraction,
   PlacedStall,
   StaffMember,
+  TileKind,
   TrashPile,
   Visitor,
 } from "../data/types";
@@ -28,28 +30,27 @@ import { Engine } from "../core/Engine";
 import { GridSystem, keyOf, parseKey, TILE_H, TILE_W } from "../core/GridSystem";
 import { astar } from "../core/Pathfinding";
 import { fxSystem } from "../engine/FxSystem";
-import { loadGameSave, writeGameSave, canUseLocalStorage, type GameSave } from "./persistence";
+import { readSave, writeSave } from "./SaveGame";
 
 const VISITOR_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899", "#06b6d4"];
 const CAR_COLORS = ["#ef4444", "#3b82f6", "#eab308", "#38bdf8", "#f97316", "#84cc16"];
+const NIGHT_WAGE_PER_STAFF = 40;
 
 /** Gem-only instant ride repair — cash cannot buy this */
 export const GEM_REPAIR_COST = 3;
-/** Nightly wage per staff member */
-export const STAFF_WAGE = 40;
+/** Nightly wage per staff member (same as night wage preview) */
+export const STAFF_WAGE = NIGHT_WAGE_PER_STAFF;
 
 let uidSeq = 1;
 function uid(prefix: string): string {
   return `${prefix}_${uidSeq++}`;
 }
 
-function syncUidSeqFromIds(ids: string[]): void {
-  let max = uidSeq;
-  for (const id of ids) {
-    const m = /_(\d+)$/.exec(id);
-    if (m) max = Math.max(max, Number(m[1]) + 1);
-  }
-  uidSeq = max;
+function bumpUidSeqFromId(id: string): void {
+  const m = /_(\d+)$/.exec(id);
+  if (!m) return;
+  const n = Number(m[1]);
+  if (Number.isFinite(n) && n >= uidSeq) uidSeq = n + 1;
 }
 
 function hashStr(s: string): number {
@@ -122,24 +123,20 @@ export interface SimState {
     janitorLeft: number;
     runnerLeft: number;
   };
-  /**
-   * Once true, admission + day clock run. Set when a path first connects
-   * the gate to an open (non-broken) ride. Persisted across refresh.
-   */
-  operationsStarted: boolean;
-  /** 22:00 close report — game stays frozen until the player confirms (and fires if needed). */
-  dayClose: {
-    income: number;
+  /** Nightly P&L held until the player confirms (blocks 22:00 silent reset) */
+  daySummary: {
+    day: number;
+    revenue: number;
+    expenses: number;
     wages: number;
-    angryLeft: number;
-    dayEnding: number;
+    visitors: number;
+    frustrated: number;
+    cashBeforeWages: number;
   } | null;
-}
-
-export interface LoopGoals {
-  path: boolean;
-  ride: boolean;
-  stockedStall: boolean;
+  gameOver: boolean;
+  gameOverReason: string | null;
+  /** Engine tick counter (saved as GameSnapshot.tick) */
+  tick: number;
 }
 
 /** Mood at or below this → guest leaves angry and won't spend */
@@ -151,6 +148,12 @@ const BIN_RADIUS = 2;
 /** Cost to place a park bench */
 const BENCH_COST = 80;
 
+export interface LoopGoals {
+  path: boolean;
+  ride: boolean;
+  stockedStall: boolean;
+}
+
 export class Simulation {
   grid = new GridSystem();
   engine = new Engine();
@@ -158,13 +161,17 @@ export class Simulation {
   private listeners = new Set<() => void>();
   private occupy = new Set<string>();
   private persistEnabled = true;
-  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(opts?: { skipLoad?: boolean; skipPersist?: boolean }) {
     this.state = this.freshState();
     this.seedStarterPark();
     this.persistEnabled = opts?.skipPersist !== true;
-    if (!opts?.skipLoad) this.tryRestore();
+    if (!opts?.skipLoad) {
+      const saved = typeof localStorage !== "undefined" ? readSave() : null;
+      if (saved?.grid?.tiles?.length) {
+        this.applySnapshot(saved);
+      }
+    }
     this.engine.on((dt) => this.tick(dt));
   }
 
@@ -208,12 +215,273 @@ export class Simulation {
         attractionLeft: 1,
         stallLeft: 1,
         binLeft: 1,
-        janitorLeft: 2,
-        runnerLeft: 2,
+        janitorLeft: 1,
+        runnerLeft: 1,
       },
-      operationsStarted: false,
-      dayClose: null,
+      daySummary: null,
+      gameOver: false,
+      gameOverReason: null,
+      tick: 0,
     };
+  }
+
+  /** Night wage preview — shown next to cash in the HUD */
+  nightWageCost(): number {
+    return this.state.staff.length * NIGHT_WAGE_PER_STAFF;
+  }
+
+  /** True until the free carousel is placed and path-connected to the gate */
+  bootstrapClockHeld(): boolean {
+    if (this.state.gameOver || this.state.daySummary) return true;
+    const kitId = this.state.starterKit.attractionId;
+    const ride = this.state.attractions.find((a) => a.defId === kitId);
+    if (!ride) return true;
+    const def = getAttraction(ride.defId);
+    if (!def) return true;
+    return !this.isFacilityConnected(ride.pos, def.footprint.w, def.footprint.h);
+  }
+
+  /** Gate twins only → need at least one more path tile into the lot */
+  hasOutboundPathFromGate(): boolean {
+    let pathTiles = 0;
+    for (let y = 0; y < this.grid.height; y++) {
+      for (let x = 0; x < this.grid.width; x++) {
+        if (this.grid.get(x, y) === "path") pathTiles += 1;
+      }
+    }
+    return pathTiles > 2;
+  }
+
+  setTicketGateFee(fee: number): void {
+    this.state.ticketGateFee = Math.max(5, Math.min(40, Math.round(fee)));
+    this.state.message = `דמי כניסה: ₪${this.state.ticketGateFee}`;
+    this.notify();
+    this.persist();
+  }
+
+  confirmDayEnd(skipWagesWithGem: boolean): void {
+    const summary = this.state.daySummary;
+    if (!summary) return;
+    let wages = summary.wages;
+    if (skipWagesWithGem && this.state.gems >= 1 && wages > 0) {
+      this.state.gems -= 1;
+      wages = 0;
+      this.state.message = "דילגתם על שכר הלילה עם יהלום";
+    } else if (wages > 0) {
+      this.state.cash -= wages;
+      this.state.message = `שכר לילה: −₪${wages}`;
+    }
+    this.state.daySummary = null;
+    this.state.timeOfDay = 9;
+    this.state.day += 1;
+    this.state.visitorsToday = 0;
+    this.state.revenueToday = 0;
+    this.state.expensesToday = wages > 0 ? wages : 0;
+    this.state.frustratedLeftToday = 0;
+    for (const a of this.state.attractions) a.revenueToday = 0;
+    for (const s of this.state.stalls) s.revenueToday = 0;
+    this.state.visitors = [];
+    this.state.gateQueue = 0;
+    if (this.state.cash < 0) {
+      this.triggerGameOver("הקופה שלילית — הפארק פשט רגל");
+    } else if (this.state.satisfaction <= 8) {
+      this.triggerGameOver("שביעות הרצון קרסה — האורחים נטשו");
+    } else {
+      this.state.paused = false;
+      this.engine.setPaused(false);
+    }
+    this.notify();
+    this.persist();
+  }
+
+  private triggerGameOver(reason: string): void {
+    this.state.gameOver = true;
+    this.state.gameOverReason = reason;
+    this.state.paused = true;
+    this.engine.setPaused(true);
+    this.state.message = reason;
+  }
+
+  restartPark(): void {
+    this.occupy.clear();
+    this.grid = new GridSystem();
+    this.state = this.freshState();
+    this.seedStarterPark();
+    uidSeq = 1;
+    this.engine.setPaused(false);
+    this.notify();
+    this.persist();
+  }
+
+  toSnapshot(): GameSnapshot {
+    return {
+      cash: this.state.cash,
+      day: this.state.day,
+      tick: this.state.tick,
+      satisfaction: this.state.satisfaction,
+      cleanliness: this.state.cleanliness,
+      visitorsToday: this.state.visitorsToday,
+      revenueToday: this.state.revenueToday,
+      expensesToday: this.state.expensesToday,
+      warehouseStock: this.state.warehouseStock,
+      unlockedPlots: this.grid.plots.filter((p) => p.unlocked).map((p) => p.id),
+      entranceLanes: this.state.entranceLanes,
+      parkingBays: this.state.parkingBays,
+      paused: this.state.paused,
+      speed: this.state.speed,
+      gems: this.state.gems,
+      timeOfDay: this.state.timeOfDay,
+      ticketGateFee: this.state.ticketGateFee,
+      warehouseBuilt: this.state.warehouseBuilt,
+      parkLevel: this.state.parkLevel,
+      parkXp: this.state.parkXp,
+      frustratedLeftToday: this.state.frustratedLeftToday,
+      gameOver: this.state.gameOver,
+      gameOverReason: this.state.gameOverReason,
+      starterKit: { ...this.state.starterKit },
+      attractions: this.state.attractions.map((a) => ({ ...a, pos: { ...a.pos }, queue: [...a.queue], riders: [...a.riders] })),
+      stalls: this.state.stalls.map((s) => ({ ...s, pos: { ...s.pos }, queue: [...s.queue] })),
+      staff: this.state.staff.map((s) => ({ ...s, pos: { ...s.pos }, path: s.path.map((p) => ({ ...p })), pixel: { ...s.pixel } })),
+      trash: this.state.trash.map((t) => ({ ...t, pos: { ...t.pos } })),
+      parking: this.state.parking.map((p) => ({ ...p, pos: { ...p.pos } })),
+      visitors: this.state.visitors.map((v) => ({
+        ...v,
+        pos: { ...v.pos },
+        path: v.path.map((p) => ({ ...p })),
+        pixel: { ...v.pixel },
+      })),
+      grid: {
+        width: this.grid.width,
+        height: this.grid.height,
+        tiles: this.grid.tiles.map((row) => row.slice() as TileKind[]),
+        bins: [...this.grid.bins],
+        benches: [...this.grid.benches],
+        decor: [...this.grid.decor.entries()] as [string, DecorKind][],
+        gatePos: { ...this.grid.gatePos },
+        warehousePos: { ...this.grid.warehousePos },
+      },
+    };
+  }
+
+  applySnapshot(snap: GameSnapshot): void {
+    if (!snap.grid?.tiles?.length) return;
+    this.occupy.clear();
+    this.grid = new GridSystem(snap.grid.width, snap.grid.height);
+    this.grid.tiles = snap.grid.tiles.map((row) => row.slice() as TileKind[]);
+    this.grid.bins = new Set(snap.grid.bins ?? []);
+    this.grid.benches = new Set(snap.grid.benches ?? []);
+    this.grid.decor = new Map(snap.grid.decor ?? []);
+    if (snap.grid.gatePos) this.grid.gatePos = { ...snap.grid.gatePos };
+    if (snap.grid.warehousePos) this.grid.warehousePos = { ...snap.grid.warehousePos };
+    const unlocked = new Set(snap.unlockedPlots ?? ["starter"]);
+    for (const plot of this.grid.plots) {
+      plot.unlocked = unlocked.has(plot.id);
+    }
+
+    this.state.cash = snap.cash;
+    this.state.day = snap.day;
+    this.state.tick = snap.tick ?? 0;
+    this.state.satisfaction = snap.satisfaction;
+    this.state.cleanliness = snap.cleanliness;
+    this.state.visitorsToday = snap.visitorsToday;
+    this.state.revenueToday = snap.revenueToday;
+    this.state.expensesToday = snap.expensesToday;
+    this.state.warehouseStock = snap.warehouseStock;
+    this.state.entranceLanes = snap.entranceLanes;
+    this.state.parkingBays = snap.parkingBays;
+    this.state.paused = snap.paused;
+    this.state.speed = snap.speed;
+    this.state.gems = snap.gems ?? this.state.gems;
+    this.state.timeOfDay = snap.timeOfDay ?? 9;
+    this.state.ticketGateFee = snap.ticketGateFee ?? 12;
+    this.state.warehouseBuilt = snap.warehouseBuilt ?? false;
+    this.state.parkLevel = snap.parkLevel ?? 1;
+    this.state.parkXp = snap.parkXp ?? 0;
+    this.state.frustratedLeftToday = snap.frustratedLeftToday ?? 0;
+    this.state.gameOver = snap.gameOver ?? false;
+    this.state.gameOverReason = snap.gameOverReason ?? null;
+    this.state.daySummary = null;
+    if (snap.starterKit) this.state.starterKit = { ...snap.starterKit };
+    this.state.attractions = (snap.attractions ?? []).map((a) => ({
+      ...a,
+      pos: { ...a.pos },
+      queue: [...(a.queue ?? [])],
+      riders: [...(a.riders ?? [])],
+    }));
+    this.state.stalls = (snap.stalls ?? []).map((s) => ({
+      ...s,
+      pos: { ...s.pos },
+      queue: [...(s.queue ?? [])],
+      restockAcc: s.restockAcc ?? 0,
+    }));
+    this.state.staff = (snap.staff ?? []).map((s) => ({
+      ...s,
+      pos: { ...s.pos },
+      path: (s.path ?? []).map((p) => ({ ...p })),
+      pixel: { ...s.pixel },
+    }));
+    this.state.trash = (snap.trash ?? []).map((t) => ({ ...t, pos: { ...t.pos } }));
+    this.state.parking = (snap.parking ?? []).map((p) => ({ ...p, pos: { ...p.pos } }));
+    this.state.visitors = (snap.visitors ?? []).map((v) => ({
+      ...v,
+      pos: { ...v.pos },
+      path: (v.path ?? []).map((p) => ({ ...p })),
+      pixel: { ...v.pixel },
+    }));
+    this.state.buildMode = "none";
+    this.state.selectedBuildId = null;
+    this.state.selectedEntity = null;
+    this.state.gateQueue = 0;
+    this.state.spawnAcc = 0;
+    this.state.enterAcc = 0;
+
+    for (const a of this.state.attractions) {
+      const def = getAttraction(a.defId);
+      if (def) this.markOccupy(a.pos, def.footprint.w, def.footprint.h);
+      bumpUidSeqFromId(a.uid);
+    }
+    for (const s of this.state.stalls) {
+      this.markOccupy(s.pos, 1, 1);
+      bumpUidSeqFromId(s.uid);
+    }
+    if (this.state.warehouseBuilt) this.occupy.add(keyOf(this.grid.warehousePos));
+    for (const s of this.state.staff) bumpUidSeqFromId(s.id);
+    for (const v of this.state.visitors) bumpUidSeqFromId(v.id);
+    for (const t of this.state.trash) bumpUidSeqFromId(t.id);
+    for (const p of this.state.parking) bumpUidSeqFromId(p.id);
+
+    this.engine.setPaused(this.state.paused || this.state.gameOver);
+    this.engine.setSpeed(this.state.speed);
+  }
+
+  private persist(): void {
+    if (!this.persistEnabled) return;
+    if (typeof localStorage === "undefined") return;
+    writeSave(this.toSnapshot());
+  }
+
+  /** First-loop goals: path beyond the gate, a ride, and a stall that has stock. */
+  getLoopGoals(): LoopGoals {
+    return {
+      path: this.hasOutboundPathFromGate(),
+      ride: this.state.attractions.length > 0,
+      stockedStall: this.state.stalls.some((s) => s.stock > 0),
+    };
+  }
+
+  /** True once the bootstrap clock is released (gate→open ride connected). */
+  get operationsStarted(): boolean {
+    return !this.bootstrapClockHeld() || Boolean(this.state.daySummary) || this.state.gameOver;
+  }
+
+  fireStaff(id: string): boolean {
+    const idx = this.state.staff.findIndex((s) => s.id === id);
+    if (idx < 0) return false;
+    this.state.staff.splice(idx, 1);
+    this.state.message = "עובד פוטר";
+    this.notify();
+    this.persistSoon();
+    return true;
   }
 
   private seedStarterPark(): void {
@@ -279,106 +547,15 @@ export class Simulation {
     this.persistSoon();
   }
 
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private persistSoon(): void {
     if (!this.persistEnabled) return;
-    if (!canUseLocalStorage()) return;
-    if (this.persistTimer != null) return;
+    if (typeof localStorage === "undefined") return;
+    if (this.persistTimer) clearTimeout(this.persistTimer);
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      writeGameSave(this.captureSave());
+      this.persist();
     }, 400);
-  }
-
-  captureSave(): GameSave {
-    return {
-      version: 1,
-      savedAt: Date.now(),
-      state: structuredClone(this.state),
-      grid: this.grid.captureSnapshot(),
-    };
-  }
-
-  tryRestore(): boolean {
-    const save = loadGameSave();
-    if (!save) return false;
-    return this.applySave(save);
-  }
-
-  applySave(save: GameSave): boolean {
-    if (!save?.state || !save.grid) return false;
-    this.grid.applySnapshot(save.grid);
-    this.state = {
-      ...this.freshState(),
-      ...save.state,
-      // runtime UI defaults after load
-      paused: Boolean(save.state.paused) || Boolean(save.state.dayClose),
-      buildMode: "none",
-      selectedBuildId: null,
-      selectedEntity: null,
-      dayClose: save.state.dayClose ?? null,
-      operationsStarted: Boolean(save.state.operationsStarted),
-      starterKit: {
-        ...this.freshState().starterKit,
-        ...(save.state.starterKit ?? {}),
-      },
-    };
-    this.rebuildOccupy();
-    syncUidSeqFromIds([
-      ...this.state.attractions.map((a) => a.uid),
-      ...this.state.stalls.map((s) => s.uid),
-      ...this.state.visitors.map((v) => v.id),
-      ...this.state.staff.map((s) => s.id),
-      ...this.state.trash.map((t) => t.id),
-      ...this.state.parking.map((p) => p.id),
-    ]);
-    this.engine.setPaused(this.state.paused);
-    this.engine.setSpeed(this.state.speed);
-    this.maybeStartOperations();
-    this.notify();
-    return true;
-  }
-
-  private rebuildOccupy(): void {
-    this.occupy.clear();
-    for (const a of this.state.attractions) {
-      const def = getAttraction(a.defId);
-      if (!def) continue;
-      this.markOccupy(a.pos, def.footprint.w, def.footprint.h);
-    }
-    for (const s of this.state.stalls) {
-      this.markOccupy(s.pos, 1, 1);
-    }
-  }
-
-  /** First-loop goals: path beyond the gate, a ride, and a stall that has stock. */
-  getLoopGoals(): LoopGoals {
-    let pathTiles = 0;
-    for (let y = 0; y < this.grid.height; y++) {
-      for (let x = 0; x < this.grid.width; x++) {
-        if (this.grid.get(x, y) === "path") pathTiles += 1;
-      }
-    }
-    // Gate twin tiles are pre-placed (2). Any extra path counts as the path goal.
-    return {
-      path: pathTiles > 2,
-      ride: this.state.attractions.length > 0,
-      stockedStall: this.state.stalls.some((s) => s.stock > 0),
-    };
-  }
-
-  /** Open ride reachable from the gate → start admission + day clock. */
-  maybeStartOperations(): void {
-    if (this.state.operationsStarted) return;
-    for (const a of this.state.attractions) {
-      if (a.broken) continue;
-      const def = getAttraction(a.defId);
-      if (!def) continue;
-      if (this.isFacilityConnected(a.pos, def.footprint.w, def.footprint.h)) {
-        this.state.operationsStarted = true;
-        this.state.message = "הפארק נפתח! מבקרים משלמים בכניסה והשעון רץ.";
-        break;
-      }
-    }
   }
 
   start(): void {
@@ -390,6 +567,7 @@ export class Simulation {
   }
 
   setPaused(p: boolean): void {
+    if (this.state.gameOver || this.state.daySummary) return;
     this.state.paused = p;
     this.engine.setPaused(p);
     this.notify();
@@ -399,6 +577,7 @@ export class Simulation {
     this.state.speed = s;
     this.engine.setSpeed(s);
     this.notify();
+    this.persist();
   }
 
   setBuildMode(mode: BuildMode, buildId: string | null = null): void {
@@ -423,8 +602,15 @@ export class Simulation {
     this.notify();
   }
 
+  /** Public toast helper (quests tip, etc.) */
+  flashMessage(msg: string): void {
+    this.state.message = msg;
+    this.notify();
+  }
+
   /** Leave build mode without wiping the success toast (path mode stays for drag-paint). */
   private exitBuildMode(): void {
+    if (this.state.buildMode === "path") return;
     this.state.buildMode = "none";
     this.state.selectedBuildId = null;
   }
@@ -499,6 +685,11 @@ export class Simulation {
     if (!def) return false;
     if (!this.canPlace(pos, def.footprint.w, def.footprint.h)) return false;
     const fromKit = !free && this.state.starterKit.attractionLeft > 0 && defId === this.state.starterKit.attractionId;
+    if (fromKit && !this.hasOutboundPathFromGate()) {
+      this.state.message = "קודם סללו שביל מהשער — ואז הציבו את הקרוסלה החינמית";
+      this.notify();
+      return false;
+    }
     const isFree = free || fromKit;
     const cost = isFree ? 0 : Math.round(300 + def.excitementScore * 12);
     if (this.state.cash < cost) {
@@ -531,7 +722,6 @@ export class Simulation {
         ? `נבנה: ${def.nameHe}`
         : `נבנה: ${def.nameHe} — בלי שביל המבקרים לא יגיעו. סללו שביל!`;
     this.exitBuildMode();
-    this.maybeStartOperations();
     this.notify();
     return true;
   }
@@ -541,6 +731,11 @@ export class Simulation {
     if (!def) return false;
     if (!this.canPlace(pos, 1, 1)) return false;
     const fromKit = !free && this.state.starterKit.stallLeft > 0 && defId === this.state.starterKit.stallId;
+    if (fromKit && !this.hasOutboundPathFromGate()) {
+      this.state.message = "קודם סללו שביל מהשער — ואז הציבו את הדוכן החינמי";
+      this.notify();
+      return false;
+    }
     const isFree = free || fromKit;
     const cost = isFree ? 0 : stallBuildCost(def);
     if (this.state.cash < cost) {
@@ -552,16 +747,20 @@ export class Simulation {
     this.state.cash -= cost;
     if (cost > 0) this.state.expensesToday += cost;
     this.markOccupy(pos, 1, 1);
+    // Small starter stock until a warehouse exists (full cap once warehouse is built)
+    const cap = stallStockCap(def, 1);
+    const startStock = this.state.warehouseBuilt ? cap : Math.min(12, Math.max(6, Math.floor(cap * 0.35)));
     this.state.stalls.push({
       uid: uid("stall"),
       defId,
       pos: { ...pos },
       tier: 1,
-      stock: stallStockCap(def, 1),
+      stock: startStock,
       queue: [],
       servingTimer: 0,
       revenueToday: 0,
       awaitingRestock: false,
+      restockAcc: 0,
     });
     const connected = this.isFacilityConnected(pos, 1, 1);
     this.state.message = fromKit
@@ -591,7 +790,6 @@ export class Simulation {
     this.state.expensesToday += cost;
     this.grid.set(pos.x, pos.y, "path");
     if (!quiet) this.state.message = "שביל נסלל — גררו להמשך";
-    this.maybeStartOperations();
     this.notify();
     return true;
   }
@@ -635,7 +833,6 @@ export class Simulation {
     this.state.message = fromKit
       ? `פח מערכה הותקן · ${n} פחים בפארק`
       : `פח אשפה הוצב (₪${cost}) · ${n} פחים — פחות לכלוך, מבקרים מרוצים יותר`;
-    this.exitBuildMode();
     this.notify();
     return true;
   }
@@ -694,7 +891,6 @@ export class Simulation {
     }
     const n = this.grid.benches.size;
     this.state.message = `ספסל הוצב (₪${BENCH_COST}) · ${n} ספסלים — אורחים יושבים ונחים`;
-    this.exitBuildMode();
     this.notify();
     return true;
   }
@@ -738,7 +934,7 @@ export class Simulation {
       timer: 0,
     });
     this.state.message = `מקום חניה נוסף · ${this.state.parkingBays}/18`;
-    this.exitBuildMode();
+    this.setBuildMode("none");
     this.notify();
     return true;
   }
@@ -770,7 +966,7 @@ export class Simulation {
     this.state.warehouseStock = 20;
     this.occupy.add(keyOf(pos));
     this.state.message = "מחסן לוגיסטיקה הוצב — הזמינו מלאי מהתפריט";
-    this.exitBuildMode();
+    this.setBuildMode("none");
     this.notify();
     return true;
   }
@@ -804,7 +1000,6 @@ export class Simulation {
     this.grid.decor.set(keyOf(pos), kind);
     const n = this.grid.decor.size;
     this.state.message = `${def.nameHe} הוצב (₪${def.cost}) · ${n} פריטי נוי — מצב הרוח עולה`;
-    this.exitBuildMode();
     this.notify();
     return true;
   }
@@ -1004,20 +1199,16 @@ export class Simulation {
 
   buyWarehouseStock(amount = 40): void {
     if (!this.state.warehouseBuilt) {
-      this.state.message = "אין מחסן — בנו מחסן מבנק הבנייה לפני הזמנת אספקה (₪120). הכסף לא נגבה.";
+      this.state.message = "בנו מחסן מבנק הבנייה לפני הזמנת מלאי";
       this.notify();
       return;
     }
     const cost = amount * 3;
-    if (this.state.cash < cost) {
-      this.state.message = "אין מספיק מזומן להזמנת אספקה";
-      this.notify();
-      return;
-    }
+    if (this.state.cash < cost) return;
     this.state.cash -= cost;
     this.state.expensesToday += cost;
     this.state.warehouseStock += amount;
-    this.state.message = `המחסן התמלא (+${amount}) · ₪${cost}`;
+    this.state.message = `המחסן התמלא (+${amount})`;
     this.notify();
   }
 
@@ -1055,90 +1246,41 @@ export class Simulation {
     a.broken = false;
     this.state.message = `המתקן תוקן מיידית (−${GEM_REPAIR_COST} יהלומים)`;
     this.notify();
-  }
-
-  fireStaff(id: string): boolean {
-    const idx = this.state.staff.findIndex((s) => s.id === id);
-    if (idx < 0) return false;
-    this.state.staff.splice(idx, 1);
-    if (this.state.dayClose) {
-      this.state.dayClose = {
-        ...this.state.dayClose,
-        wages: this.state.staff.length * STAFF_WAGE,
-      };
-    }
-    this.state.message = "עובד פוטר";
-    this.notify();
-    return true;
-  }
-
-  /** Confirm 22:00 close: pay wages (after optional firings). Never drive cash below zero. */
-  confirmDayClose(): boolean {
-    const report = this.state.dayClose;
-    if (!report) return false;
-    const wages = this.state.staff.length * STAFF_WAGE;
-    if (this.state.cash < wages) {
-      this.state.dayClose = { ...report, wages };
-      this.state.message = "אין מספיק מזומן למשכורות — פטרו עובדים עד שהסכום מתכסה";
-      this.notify();
-      return false;
-    }
-    this.state.cash -= wages;
-    this.state.expensesToday += wages;
-    this.state.dayClose = null;
-    this.state.timeOfDay = 9;
-    this.state.day += 1;
-    this.state.visitorsToday = 0;
-    this.state.revenueToday = 0;
-    this.state.expensesToday = 0;
-    this.state.frustratedLeftToday = 0;
-    for (const a of this.state.attractions) a.revenueToday = 0;
-    for (const s of this.state.stalls) s.revenueToday = 0;
-    this.state.message =
-      wages > 0
-        ? `יום חדש! שולמו ₪${wages} משכורות. אתמול: הכנסה ₪${report.income}, ${report.angryLeft} עזבו בכעס`
-        : `יום חדש! אין צוות לתשלום. אתמול: הכנסה ₪${report.income}, ${report.angryLeft} עזבו בכעס`;
-    this.setPaused(false);
-    this.notify();
-    return true;
-  }
-
-  private beginDayClose(): void {
-    if (this.state.dayClose) return;
-    const wages = this.state.staff.length * STAFF_WAGE;
-    this.state.timeOfDay = 22;
-    this.state.dayClose = {
-      income: this.state.revenueToday,
-      wages,
-      angryLeft: this.state.frustratedLeftToday,
-      dayEnding: this.state.day,
-    };
-    this.state.message = "סגירת יום — בדקו הכנסות, משכורות ומבקרים כועסים";
-    this.setPaused(true);
+    this.persistSoon();
   }
 
   // ——— Simulation tick ———
   private tick(dt: number): void {
-    // Night-close modal freezes sim until the player confirms (and fires if unpaid).
-    if (this.state.dayClose) {
+    this.state.tick += 1;
+    if (this.state.gameOver || this.state.daySummary) {
       fxSystem.update(dt);
       this.notify();
       return;
     }
 
-    this.maybeStartOperations();
-
-    // First loop: no admission fee and no day clock until gate→open ride path exists.
-    if (!this.state.operationsStarted) {
+    // Clock stays frozen until the free carousel is path-connected to the gate
+    if (this.bootstrapClockHeld()) {
       fxSystem.update(dt);
       this.notify();
       return;
     }
 
     this.state.timeOfDay += dt * 0.05;
-    if (this.state.timeOfDay >= 22) {
-      this.beginDayClose();
-      fxSystem.update(dt);
+    if (this.state.timeOfDay >= 22 && !this.state.daySummary) {
+      const wages = this.nightWageCost();
+      this.state.daySummary = {
+        day: this.state.day,
+        revenue: this.state.revenueToday,
+        expenses: this.state.expensesToday,
+        wages,
+        visitors: this.state.visitorsToday,
+        frustrated: this.state.frustratedLeftToday,
+        cashBeforeWages: this.state.cash,
+      };
+      this.state.timeOfDay = 21.99;
+      this.state.paused = true;
+      this.engine.setPaused(true);
+      this.state.message = `סיכום יום ${this.state.day}`;
       this.notify();
       return;
     }
@@ -1152,6 +1294,12 @@ export class Simulation {
     this.updateSatisfaction(dt);
     this.emitAmbientFx(dt);
     fxSystem.update(dt);
+
+    if (this.state.cash < 0) {
+      this.triggerGameOver("הקופה שלילית — הפארק פשט רגל");
+    } else if (this.state.satisfaction <= 8 && this.state.day > 1) {
+      this.triggerGameOver("שביעות הרצון קרסה — האורחים נטשו");
+    }
     this.notify();
   }
 
@@ -1233,8 +1381,7 @@ export class Simulation {
   }
 
   private spawnVisitor(): void {
-    const fee = this.state.ticketGateFee;
-    this.earnCash(fee, this.grid.gatePos);
+    // Gate fee is charged only when the guest first boards a ride — not at spawn.
     this.state.visitorsToday += 1;
     const start = { ...this.grid.gatePos };
     const id = uid("vis");
@@ -1262,6 +1409,7 @@ export class Simulation {
       interactTimer: 0,
       thoughtEmoji: null,
       thoughtTimer: 0,
+      paidAdmission: false,
       facing: looks.facing,
       walkPhase: looks.walkPhase,
       talkTimer: 0,
@@ -1855,12 +2003,18 @@ export class Simulation {
             continue;
           }
           const price = attractionPrice(def, a.tier);
-          if (v.wallet < price) {
+          const gateFee = v.paidAdmission ? 0 : this.state.ticketGateFee;
+          if (v.wallet < price + gateFee) {
             if (!this.hurtMood(v, 8)) {
               v.state = "wandering";
               this.assignVisitorGoal(v);
             }
             continue;
+          }
+          if (gateFee > 0) {
+            v.wallet -= gateFee;
+            v.paidAdmission = true;
+            this.earnCash(gateFee, this.grid.gatePos);
           }
           v.wallet -= price;
           v.state = "riding";
@@ -1903,6 +2057,19 @@ export class Simulation {
     for (const s of this.state.stalls) {
       const def = getStall(s.defId);
       if (!def) continue;
+
+      // Without a warehouse, use restockTime for a slow trickle of stock
+      if (!this.state.warehouseBuilt) {
+        const cap = stallStockCap(def, s.tier);
+        if (s.stock < cap) {
+          s.restockAcc = (s.restockAcc ?? 0) + dt;
+          if ((s.restockAcc ?? 0) >= def.restockTime) {
+            s.restockAcc = 0;
+            s.stock = Math.min(cap, s.stock + 1);
+            if (s.stock > cap * 0.3) s.awaitingRestock = false;
+          }
+        }
+      }
 
       if (s.stock <= Math.ceil(stallStockCap(def, s.tier) * 0.3)) {
         s.awaitingRestock = true;
@@ -2155,10 +2322,6 @@ export class Simulation {
   }
 
   /** Unit-test hooks (no gameplay use) */
-  tickForTest(dt: number): void {
-    this.tick(dt);
-  }
-
   tickVisitorsForTest(dt: number): void {
     this.updateVisitors(dt);
   }
@@ -2177,6 +2340,10 @@ export class Simulation {
 
   tickSatisfactionForTest(): void {
     this.updateSatisfaction(0);
+  }
+
+  tickForTest(dt: number): void {
+    this.tick(dt);
   }
 }
 

@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useGameStore } from "../../state/useGameStore";
 import { simulation } from "../../managers/Simulation";
+import { localizeSimMessage } from "../../i18n/localizeSimMessage";
+import { useI18n } from "../../i18n/I18nContext";
 
-/** Auto-dismissing toast — sits above the bottom dock, never over the HUD */
+/** Auto-dismiss toast above the bottom bar — thin card, no glow */
 export function ToastMessage() {
   const message = useGameStore().message;
+  const { locale } = useI18n();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -16,7 +19,6 @@ export function ToastMessage() {
     const longLived = /מחסן|warehouse|יהלומ|gem|משכור|wage|סגירת יום|day close/i.test(message);
     const t = window.setTimeout(() => {
       setVisible(false);
-      // clear store message so it doesn't reappear
       simulation.state.message = null;
     }, longLived ? 5200 : 3200);
     return () => window.clearTimeout(t);
@@ -24,13 +26,15 @@ export function ToastMessage() {
 
   if (!visible || !message) return null;
 
+  const text = localizeSimMessage(message, locale);
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[6.25rem] z-[60] flex justify-center px-3 sm:bottom-8">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[4.75rem] z-[45] flex justify-center px-3 sm:bottom-6">
       <div
-        className="wow-frame max-w-[min(94vw,400px)] px-3 py-2.5 text-center text-xs font-semibold text-[color:var(--wow-parchment)] sm:text-sm"
+        className="cit-card max-w-[min(92vw,360px)] rounded px-3 py-2 text-center text-xs font-semibold text-[color:var(--cit-text)] sm:text-sm"
         data-testid="toast-message"
       >
-        {message}
+        {text}
       </div>
     </div>
   );
