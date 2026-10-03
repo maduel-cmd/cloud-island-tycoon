@@ -46,8 +46,8 @@ export type ThreeParkHandle = {
   /** הזזת מטרה יחסית (WASD) בכיוון המצלמה */
   nudge: (forward: number, right: number) => void;
   /**
-   * Finger wind: scatter park-mist clouds near the tap.
-   * Cliff-edge cloud tiles are never affected. Returns true if any mist moved.
+   * Finger wind (legacy): ground mist removed — cirrus is sky-only.
+   * Always returns false.
    */
   blowCloudsAt: (clientX: number, clientY: number) => boolean;
 };
