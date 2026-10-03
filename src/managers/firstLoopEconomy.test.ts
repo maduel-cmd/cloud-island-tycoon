@@ -36,7 +36,8 @@ describe("save + first-loop economy", () => {
     clearSave();
     const sim = new Simulation();
     assert.equal(sim.hasOutboundPathFromGate(), false);
-    const ok = sim.placeAttraction("grand_carousel", { x: 10, y: 10 });
+    const gate = sim.grid.gatePos;
+    const ok = sim.placeAttraction("grand_carousel", { x: gate.x - 1, y: gate.y - 5 });
     assert.equal(ok, false);
     assert.equal(sim.state.attractions.length, 0);
   });
@@ -44,10 +45,12 @@ describe("save + first-loop economy", () => {
   it("charges gate fee when guest boards a connected ride", () => {
     clearSave();
     const sim = new Simulation();
+    const gate = sim.grid.gatePos;
+    const ridePos = { x: gate.x - 1, y: gate.y - 8 };
     // Place ride first (free bypasses kit path lock), then pave corridor to an entry tile
-    assert.equal(sim.placeAttraction("grand_carousel", { x: 10, y: 8 }, true), true);
-    for (const y of [14, 13, 12, 11, 10]) {
-      assert.equal(sim.placePath({ x: 11, y }, true), true);
+    assert.equal(sim.placeAttraction("grand_carousel", ridePos, true), true);
+    for (let y = gate.y - 1; y >= ridePos.y + 2; y--) {
+      assert.equal(sim.placePath({ x: gate.x, y }, true), true);
     }
     assert.equal(sim.bootstrapClockHeld(), false);
 
@@ -69,7 +72,9 @@ describe("save + first-loop economy", () => {
   it("persists grid + cash across toSnapshot/applySnapshot", () => {
     clearSave();
     const sim = new Simulation();
-    sim.placePath({ x: 11, y: 14 }, true);
+    const gate = sim.grid.gatePos;
+    const pathY = gate.y - 1;
+    sim.placePath({ x: gate.x, y: pathY }, true);
     sim.state.cash = 4242;
     const snap = sim.toSnapshot();
     assert.ok(snap.grid?.tiles?.length);
@@ -77,13 +82,13 @@ describe("save + first-loop economy", () => {
     const loaded = readSave();
     assert.ok(loaded);
     assert.equal(loaded!.cash, 4242);
-    assert.equal(loaded!.grid!.tiles[14]![11], "path");
+    assert.equal(loaded!.grid!.tiles[pathY]![gate.x], "path");
 
     clearSave();
     const sim2 = new Simulation();
     sim2.applySnapshot(loaded!);
     assert.equal(sim2.state.cash, 4242);
-    assert.equal(sim2.grid.get(11, 14), "path");
+    assert.equal(sim2.grid.get(gate.x, pathY), "path");
     assert.equal(sim2.state.attractions.length, 0);
     assert.ok(SAVE_KEY);
   });
@@ -92,8 +97,10 @@ describe("save + first-loop economy", () => {
     clearSave();
     const sim = new Simulation();
     sim.hireStaff("janitor");
-    assert.equal(sim.placeAttraction("grand_carousel", { x: 10, y: 8 }, true), true);
-    for (const y of [14, 13, 12, 11, 10]) sim.placePath({ x: 11, y }, true);
+    const gate = sim.grid.gatePos;
+    const ridePos = { x: gate.x - 1, y: gate.y - 8 };
+    assert.equal(sim.placeAttraction("grand_carousel", ridePos, true), true);
+    for (let y = gate.y - 1; y >= ridePos.y + 2; y--) sim.placePath({ x: gate.x, y }, true);
     assert.equal(sim.bootstrapClockHeld(), false);
     sim.state.timeOfDay = 21.95;
     sim.state.revenueToday = 100;

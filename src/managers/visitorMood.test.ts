@@ -6,13 +6,15 @@ import { mockVisitor } from "./testVisitor.ts";
 describe("frustrated visitors leave without spending", () => {
   it("storms out when mood crashes and leaves attraction queue", () => {
     const sim = new Simulation();
-    sim.placeAttraction("grand_carousel", { x: 10, y: 8 }, true);
-    for (const y of [12, 11, 10]) sim.placePath({ x: 11, y }, true);
+    const gate = sim.grid.gatePos;
+    const ridePos = { x: gate.x - 1, y: gate.y - 8 };
+    sim.placeAttraction("grand_carousel", ridePos, true);
+    for (let y = gate.y - 1; y >= ridePos.y + 2; y--) sim.placePath({ x: gate.x, y }, true);
     const a = sim.state.attractions[0]!;
 
     const v = mockVisitor({
       id: "vis_angry",
-      pos: { x: 11, y: 10 },
+      pos: { x: gate.x, y: ridePos.y + 2 },
       state: "queuing",
       mood: 32,
       wallet: 100,
@@ -35,7 +37,8 @@ describe("frustrated visitors leave without spending", () => {
 
   it("does not charge stall when guest is already angry", () => {
     const sim = new Simulation();
-    sim.placeStall("cotton_candy", { x: 11, y: 12 }, true);
+    const gate = sim.grid.gatePos;
+    sim.placeStall("cotton_candy", { x: gate.x, y: gate.y - 5 }, true);
     const s = sim.state.stalls[0]!;
     const v = mockVisitor({
       id: "vis_skip",

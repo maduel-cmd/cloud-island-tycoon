@@ -44,10 +44,13 @@ describe("memory: starter lot is empty bank (no pre-placed content)", () => {
 
   it("places parking and warehouse from the build bank", () => {
     const sim = new Simulation();
-    assert.equal(sim.placeParking({ x: 10, y: 10 }), true);
+    const gate = sim.grid.gatePos;
+    const parkPos = { x: gate.x - 4, y: gate.y - 4 };
+    const whPos = { x: gate.x - 5, y: gate.y - 6 };
+    assert.equal(sim.placeParking(parkPos), true);
     assert.equal(sim.state.parkingBays, 1);
-    assert.equal(sim.grid.get(10, 10), "parking");
-    assert.equal(sim.placeWarehouse({ x: 8, y: 9 }), true);
+    assert.equal(sim.grid.get(parkPos.x, parkPos.y), "parking");
+    assert.equal(sim.placeWarehouse(whPos), true);
     assert.equal(sim.state.warehouseBuilt, true);
     assert.ok(sim.state.warehouseStock > 0);
   });
