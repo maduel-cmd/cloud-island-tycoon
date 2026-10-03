@@ -24,7 +24,8 @@ export class GridSystem {
   /** cell key → decor kind */
   decor: Map<string, DecorKind>;
 
-  constructor(width = 28, height = 22) {
+  /** Flat park defaults — larger buildable world (not a round island). */
+  constructor(width = 40, height = 32) {
     this.width = width;
     this.height = height;
     this.tiles = Array.from({ length: height }, () =>
@@ -33,50 +34,116 @@ export class GridSystem {
     this.bins = new Set();
     this.benches = new Set();
     this.decor = new Map();
-    this.plots = [
-      {
-        id: "starter",
-        origin: { x: 6, y: 6 },
-        width: 12,
-        height: 10,
-        cost: 0,
-        unlocked: true,
-      },
-      {
-        id: "north",
-        origin: { x: 6, y: 2 },
-        width: 12,
-        height: 4,
-        cost: 2500,
-        unlocked: false,
-      },
-      {
-        id: "east",
-        origin: { x: 18, y: 6 },
-        width: 6,
-        height: 10,
-        cost: 3200,
-        unlocked: false,
-      },
-      {
-        id: "west",
-        origin: { x: 2, y: 6 },
-        width: 4,
-        height: 10,
-        cost: 2800,
-        unlocked: false,
-      },
-      {
-        id: "south",
-        origin: { x: 6, y: 16 },
-        width: 12,
-        height: 4,
-        cost: 3000,
-        unlocked: false,
-      },
-    ];
-    this.gatePos = { x: 11, y: 15 };
-    this.warehousePos = { x: 7, y: 13 };
+
+    const largeWorld = width >= 40 && height >= 32;
+    if (largeWorld) {
+      this.plots = [
+        {
+          id: "starter",
+          origin: { x: 10, y: 10 },
+          width: 16,
+          height: 12,
+          cost: 0,
+          unlocked: true,
+        },
+        {
+          id: "north",
+          origin: { x: 10, y: 4 },
+          width: 16,
+          height: 6,
+          cost: 2800,
+          unlocked: false,
+        },
+        {
+          id: "east",
+          origin: { x: 26, y: 10 },
+          width: 10,
+          height: 12,
+          cost: 3600,
+          unlocked: false,
+        },
+        {
+          id: "west",
+          origin: { x: 3, y: 10 },
+          width: 7,
+          height: 12,
+          cost: 3200,
+          unlocked: false,
+        },
+        {
+          id: "south",
+          origin: { x: 10, y: 22 },
+          width: 16,
+          height: 6,
+          cost: 3400,
+          unlocked: false,
+        },
+        {
+          id: "northeast",
+          origin: { x: 26, y: 4 },
+          width: 10,
+          height: 6,
+          cost: 4200,
+          unlocked: false,
+        },
+        {
+          id: "northwest",
+          origin: { x: 3, y: 4 },
+          width: 7,
+          height: 6,
+          cost: 4000,
+          unlocked: false,
+        },
+      ];
+      this.gatePos = { x: 17, y: 21 };
+      this.warehousePos = { x: 11, y: 18 };
+    } else {
+      // Legacy compact layout for older saves
+      this.plots = [
+        {
+          id: "starter",
+          origin: { x: 6, y: 6 },
+          width: 12,
+          height: 10,
+          cost: 0,
+          unlocked: true,
+        },
+        {
+          id: "north",
+          origin: { x: 6, y: 2 },
+          width: 12,
+          height: 4,
+          cost: 2500,
+          unlocked: false,
+        },
+        {
+          id: "east",
+          origin: { x: 18, y: 6 },
+          width: 6,
+          height: 10,
+          cost: 3200,
+          unlocked: false,
+        },
+        {
+          id: "west",
+          origin: { x: 2, y: 6 },
+          width: 4,
+          height: 10,
+          cost: 2800,
+          unlocked: false,
+        },
+        {
+          id: "south",
+          origin: { x: 6, y: 16 },
+          width: 12,
+          height: 4,
+          cost: 3000,
+          unlocked: false,
+        },
+      ];
+      this.gatePos = { x: 11, y: 15 };
+      this.warehousePos = { x: 7, y: 13 };
+    }
     this.applyStarterLayout();
   }
 

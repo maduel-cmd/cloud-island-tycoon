@@ -15,7 +15,7 @@ import {
   buildAttractionMesh,
   buildStallMesh,
 } from "./RideMeshes";
-import { computeWindBurst, WIND_BURST_RADIUS } from "./cloudWindBurst";
+import { createCirrusSkyTexture } from "./cirrusSky";
 
 export const THREE_ZOOM_MIN = 0.35;
 export const THREE_ZOOM_MAX = 3.5;
@@ -75,12 +75,12 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   const w = Math.max(1, container.clientWidth || 640);
   const h = Math.max(1, container.clientHeight || 480);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#7eb8dc");
-  scene.fog = new THREE.FogExp2("#a8cce0", 0.012);
+  scene.background = new THREE.Color("#6eb0dc");
+  scene.fog = new THREE.FogExp2("#9ec8e0", 0.006);
 
   /** זום = קרבה; רדיוס orbit בסיסי / zoom */
-  const BASE_RADIUS = 22;
-  let zoom = 1.15;
+  const BASE_RADIUS = 28;
+  let zoom = 1.05;
   /** orbit כמו WoW — yaw/pitch סביב מטרה */
   let orbitYaw = Math.PI / 4;
   let orbitPitch = 0.88;
@@ -89,9 +89,9 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
 
   const aspect = () => Math.max(0.1, (container.clientWidth || w) / Math.max(1, container.clientHeight || h));
 
-  const camera = new THREE.PerspectiveCamera(48, aspect(), 0.2, 280);
+  const camera = new THREE.PerspectiveCamera(48, aspect(), 0.2, 420);
   const camTarget = new THREE.Vector3(0, 0.4, 0);
-  let mapBounds = gridWorldBounds(28, 22);
+  let mapBounds = gridWorldBounds(40, 32);
 
   const clampCamTarget = () => {
     // שוליים לפי זום — בקצה המפה העצירה; תמיד נשארים מעל שטח המפה (עננים/אחו)
@@ -159,34 +159,28 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   const root = new THREE.Group();
   scene.add(root);
   const tilesGroup = new THREE.Group();
-  /** Cliff-edge cloud tiles only — never scattered by finger wind */
+  /** Kept for API/dispose compatibility — no ground cloud sprites */
   const fogCloudsGroup = new THREE.Group();
-  /** Soft mist that can cover the park — finger wind blows these away */
   const parkMistGroup = new THREE.Group();
   const entitiesGroup = new THREE.Group();
   const fxGroup = new THREE.Group();
-  root.add(tilesGroup, fogCloudsGroup, parkMistGroup, entitiesGroup, fxGroup);
+  const sceneryGroup = new THREE.Group();
+  root.add(tilesGroup, fogCloudsGroup, parkMistGroup, entitiesGroup, fxGroup, sceneryGroup);
 
-  // אי אבן / צוקים — כמו starting zone (לא גליל חום קריקטורי)
-  const islandMat = new THREE.MeshStandardMaterial({
-    color: 0x5a5348,
-    roughness: 0.92,
-    metalness: 0.05,
-    flatShading: true,
-  });
   const cliffMat = new THREE.MeshStandardMaterial({
     color: 0x6e6558,
     roughness: 0.95,
     flatShading: true,
   });
-  const mossMat = new THREE.MeshStandardMaterial({
-    color: 0x3d6b28,
-    roughness: 0.9,
-    flatShading: true,
-  });
   const meadowMat = new THREE.MeshStandardMaterial({
     color: 0x3f6e2c,
     roughness: 0.95,
+    flatShading: true,
+  });
+  const lakeMat = new THREE.MeshStandardMaterial({
+    color: 0x3a8fc4,
+    roughness: 0.35,
+    metalness: 0.15,
     flatShading: true,
   });
   // טקסטורת אחו פרוצדורלית (ווריאציה עדינה)
@@ -212,148 +206,129 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       const tex = new THREE.CanvasTexture(c);
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(6, 6);
+      tex.repeat.set(14, 14);
       tex.magFilter = THREE.LinearFilter;
       meadowMat.map = tex;
       meadowMat.needsUpdate = true;
     }
   }
 
-  // גוף צוק מתחת — לא נראה מלמעלה
-  const islandBase = new THREE.Mesh(new THREE.CylinderGeometry(15.5, 12.2, 3.2, 7), islandMat);
-  islandBase.position.y = -2.0;
-  islandBase.receiveShadow = true;
-  islandBase.castShadow = true;
-  root.add(islandBase);
+  /**
+   * Flat world plate under the whole grid — not a round island.
+   * Sized from map bounds so buildable tiles sit on continuous land.
+   */
+  const fitFlatWorld = () => {
+    const spanX = Math.max(24, mapBounds.maxX - mapBounds.minX + 8);
+    const spanZ = Math.max(24, mapBounds.maxZ - mapBounds.minZ + 8);
+    meadow.scale.set(spanX / 40, 1, spanZ / 40);
+    meadow.position.set(mapBounds.centerX, -0.12, mapBounds.centerZ);
+  };
 
-  // משטח אחו ירוק על גג האי (כיסוי מלא — לא אבן אפורה חשופה)
-  const meadow = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 0.35, 28), meadowMat);
-  meadow.position.y = -0.05;
+  const meadow = new THREE.Mesh(new THREE.BoxGeometry(40, 0.28, 40), meadowMat);
   meadow.receiveShadow = true;
-  root.add(meadow);
+  sceneryGroup.add(meadow);
+  fitFlatWorld();
 
-  // ים ענני נוצה סביב הצוק — שכבות דקיקות גבוהות, לא טבעת אטומה על האחו
-  const cirrusSeaMat = new THREE.MeshStandardMaterial({
-    color: 0xf7fafc,
-    roughness: 1,
-    transparent: true,
-    opacity: 0.28,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  for (let i = 0; i < 10; i++) {
-    const wisp = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 8, 6),
-      cirrusSeaMat,
+  // Lakes outside / at the rim — decorative only, do not eat buildable tiles
+  const lakeSpots = [
+    { x: 1.08, z: 0.15, sx: 5.5, sz: 3.2 },
+    { x: -0.95, z: 0.85, sx: 4.2, sz: 2.8 },
+    { x: 0.2, z: -1.05, sx: 6.0, sz: 3.5 },
+  ];
+  for (const spot of lakeSpots) {
+    const lake = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.08, 20), lakeMat);
+    lake.scale.set(spot.sx, 1, spot.sz);
+    lake.position.set(
+      mapBounds.centerX + spot.x * ((mapBounds.maxX - mapBounds.minX) * 0.55),
+      -0.02,
+      mapBounds.centerZ + spot.z * ((mapBounds.maxZ - mapBounds.minZ) * 0.55),
     );
-    const ang = (i / 10) * Math.PI * 2;
-    const dist = 18 + (i % 3) * 2.2;
-    wisp.position.set(Math.cos(ang) * dist, -1.4 + (i % 4) * 0.35, Math.sin(ang) * dist);
-    wisp.scale.set(4.5 + (i % 3), 0.18 + (i % 2) * 0.08, 1.2 + (i % 3) * 0.35);
-    wisp.rotation.y = ang + 0.4;
-    wisp.rotation.z = (i % 5) * 0.04 - 0.1;
-    root.add(wisp);
+    sceneryGroup.add(lake);
   }
 
-  // שפת אחו מורמת / גבעות קטנות
-  for (let i = 0; i < 8; i++) {
-    const mound = new THREE.Mesh(new THREE.SphereGeometry(1.8 + (i % 3) * 0.4, 8, 6), meadowMat);
-    const ang = (i / 8) * Math.PI * 2;
-    mound.position.set(Math.cos(ang) * 10.5, 0.15, Math.sin(ang) * 10.5);
-    mound.scale.set(1.6, 0.28, 1.3);
-    mound.receiveShadow = true;
-    root.add(mound);
-  }
-
-  // מדפי צוק
-  for (let i = 0; i < 5; i++) {
-    const ledge = new THREE.Mesh(
-      new THREE.BoxGeometry(3.5 + (i % 3), 0.7 + (i % 2) * 0.4, 2.2),
-      cliffMat,
-    );
-    const ang = (i / 5) * Math.PI * 2;
-    ledge.position.set(Math.cos(ang) * 11.5, -1.2 - (i % 3) * 0.35, Math.sin(ang) * 11.5);
-    ledge.rotation.y = ang;
-    ledge.castShadow = true;
-    root.add(ledge);
-  }
-
-  const underRock = new THREE.Mesh(new THREE.ConeGeometry(10.5, 9, 6), cliffMat);
-  underRock.position.y = -7.2;
-  underRock.castShadow = true;
-  root.add(underRock);
-
-  // כתמי אזוב על שפת האי
+  // Distant mountains on the horizon (outside the playable plate)
+  const farMat = new THREE.MeshStandardMaterial({ color: 0x6a8499, roughness: 1, flatShading: true });
   for (let i = 0; i < 10; i++) {
-    const patch = new THREE.Mesh(new THREE.SphereGeometry(0.9 + (i % 3) * 0.25, 6, 6), mossMat);
-    const ang = (i / 10) * Math.PI * 2;
-    patch.position.set(Math.cos(ang) * 13.2, -0.35, Math.sin(ang) * 13.2);
-    patch.scale.set(1.4, 0.35, 1.1);
-    root.add(patch);
+    const m = new THREE.Mesh(new THREE.ConeGeometry(5 + (i % 4), 7 + (i % 5), 5), farMat);
+    const ang = (i / 10) * Math.PI * 2 + 0.3;
+    const dist = 58 + (i % 3) * 6;
+    m.position.set(
+      mapBounds.centerX + Math.cos(ang) * dist,
+      1.2 + (i % 3) * 0.6,
+      mapBounds.centerZ + Math.sin(ang) * dist,
+    );
+    sceneryGroup.add(m);
   }
 
-  // סלעים בודדים באחו (פרטים כמו starting zone)
-  for (let i = 0; i < 7; i++) {
+  // Edge rocks / hills outside grid center — keep playable interior open
+  for (let i = 0; i < 12; i++) {
     const rock = new THREE.Mesh(
-      new THREE.DodecahedronGeometry(0.35 + (i % 3) * 0.12, 0),
+      new THREE.DodecahedronGeometry(0.55 + (i % 4) * 0.18, 0),
       cliffMat,
     );
-    const ang = (i / 7) * Math.PI * 2 + 0.7;
-    rock.position.set(Math.cos(ang) * (6 + (i % 4)), 0.25, Math.sin(ang) * (6 + (i % 4)));
-    rock.rotation.set(0.2 * i, 0.4 * i, 0.1);
-    rock.castShadow = true;
-    root.add(rock);
+    const ang = (i / 12) * Math.PI * 2 + 0.4;
+    const dist = 22 + (i % 4) * 2.5;
+    rock.position.set(
+      mapBounds.centerX + Math.cos(ang) * dist,
+      0.2,
+      mapBounds.centerZ + Math.sin(ang) * dist,
+    );
+    rock.rotation.set(0.15 * i, 0.35 * i, 0.08);
+    sceneryGroup.add(rock);
   }
 
-  // עצים פשוטים (גזע + עלוה) — נוכחות יער קלה
+  // Tree line near the outer rim only
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3420, roughness: 0.9, flatShading: true });
   const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f6b28, roughness: 0.85, flatShading: true });
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 14; i++) {
     const tree = new THREE.Group();
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.9, 5), trunkMat);
     trunk.position.y = 0.45;
     const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.55 + (i % 3) * 0.1, 1.1, 6), leafMat);
     canopy.position.y = 1.25;
     tree.add(trunk, canopy);
-    const ang = (i / 9) * Math.PI * 2 + 0.15;
-    const dist = 8.5 + (i % 3) * 1.2;
-    tree.position.set(Math.cos(ang) * dist, 0, Math.sin(ang) * dist);
-    tree.traverse((c) => {
-      if ((c as THREE.Mesh).isMesh) {
-        c.castShadow = true;
-        c.receiveShadow = true;
-      }
-    });
-    root.add(tree);
+    const ang = (i / 14) * Math.PI * 2 + 0.2;
+    const dist = 20 + (i % 3) * 1.8;
+    tree.position.set(
+      mapBounds.centerX + Math.cos(ang) * dist,
+      0,
+      mapBounds.centerZ + Math.sin(ang) * dist,
+    );
+    sceneryGroup.add(tree);
   }
 
-  // הרים רחוקים באופק
-  const farMat = new THREE.MeshStandardMaterial({ color: 0x6a8499, roughness: 1, flatShading: true });
-  for (let i = 0; i < 6; i++) {
-    const m = new THREE.Mesh(new THREE.ConeGeometry(4 + (i % 3), 6 + (i % 4), 5), farMat);
-    const ang = (i / 6) * Math.PI * 2 + 0.4;
-    m.position.set(Math.cos(ang) * 48, 1 + (i % 2), Math.sin(ang) * 48);
-    root.add(m);
-  }
-
-  // ענני נוצה רחוקים — דקים וגבוהים, מחוץ לאי בלבד
-  const cirrusFarMat = new THREE.MeshStandardMaterial({
-    color: 0xf8fafc,
+  // High sky cirrus — matches feather-cloud reference; never on the ground
+  const cirrusCanvas = createCirrusSkyTexture();
+  const cirrusTex = new THREE.CanvasTexture(cirrusCanvas);
+  cirrusTex.colorSpace = THREE.SRGBColorSpace;
+  cirrusTex.wrapS = cirrusTex.wrapT = THREE.RepeatWrapping;
+  cirrusTex.needsUpdate = true;
+  const cirrusSkyMat = new THREE.MeshBasicMaterial({
+    map: cirrusTex,
     transparent: true,
-    opacity: 0.32,
-    roughness: 1,
+    opacity: 0.85,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
-  for (let i = 0; i < 8; i++) {
-    const c = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6), cirrusFarMat);
-    const ang = (i / 8) * Math.PI * 2;
-    c.position.set(Math.cos(ang) * 32, 9 + (i % 3) * 1.2, Math.sin(ang) * 32);
-    c.scale.set(5.5 + (i % 3) * 0.8, 0.22, 1.4 + (i % 2) * 0.4);
-    c.rotation.y = ang * 0.7;
-    c.rotation.z = ((i % 4) - 1.5) * 0.06;
-    root.add(c);
+  const skyGroup = new THREE.Group();
+  scene.add(skyGroup);
+  const skySheets: THREE.Mesh[] = [];
+  for (let i = 0; i < 3; i++) {
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(140, 55), cirrusSkyMat.clone());
+    const ang = (i / 3) * Math.PI * 2 + 0.4;
+    sheet.position.set(Math.cos(ang) * 18, 38 + i * 4, Math.sin(ang) * 18);
+    sheet.rotation.x = -Math.PI / 2.35;
+    sheet.rotation.z = ang * 0.35 + i * 0.4;
+    skyGroup.add(sheet);
+    skySheets.push(sheet);
   }
+  // Soft overhead veil
+  const veil = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), cirrusSkyMat.clone());
+  veil.position.set(0, 52, 0);
+  veil.rotation.x = -Math.PI / 2;
+  (veil.material as THREE.MeshBasicMaterial).opacity = 0.45;
+  skyGroup.add(veil);
+  skySheets.push(veil);
 
   const tileMeshes = new Map<string, THREE.Mesh>();
   const entityMeshes = new Map<string, THREE.Object3D>();
@@ -489,144 +464,18 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   }
 
   let mistSeeded = false;
-  let mistLandSig = "";
-  let mistIdSeq = 0;
 
-  /** Soft cirrus / feather material — no chunky tile texture */
-  const cirrusMat = (opacity = 0.34) =>
-    new THREE.MeshStandardMaterial({
-      color: 0xf8fafc,
-      transparent: true,
-      opacity,
-      roughness: 1,
-      metalness: 0,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-
-  const makeCirrusFeather = (scale = 1): THREE.Group => {
-    const g = new THREE.Group();
-    // Thin elongated wisps stacked slightly — reads as ענני נוצה
-    for (let k = 0; k < 3; k++) {
-      const wisp = new THREE.Mesh(geoCache.cloudPuff, cirrusMat(0.28 + k * 0.05));
-      wisp.scale.set(
-        (2.8 + k * 0.6) * scale,
-        (0.12 + k * 0.04) * scale,
-        (0.55 + k * 0.15) * scale,
-      );
-      wisp.position.set((k - 1) * 0.35 * scale, k * 0.08, (k - 1) * 0.12);
-      wisp.rotation.z = (k - 1) * 0.08;
-      wisp.rotation.y = k * 0.2;
-      g.add(wisp);
-    }
-    return g;
-  };
-
-  const isOwnedParkTile = (kind: string) =>
-    kind === "grass" || kind === "path" || kind === "parking" || kind === "road";
-
-  /**
-   * Feather mist only over unowned land (cloud/locked).
-   * Never covers rides or owned/purchased park tiles.
-   */
-  const seedParkMist = (sim: Simulation) => {
-    const g = sim.grid;
-    const landSig = g.plots.filter((p) => p.unlocked).map((p) => p.id).sort().join(",");
-    if (mistSeeded && landSig === mistLandSig) {
-      // Cull any mist that ended up over owned land (unlock / scatter settle)
-      const doomed: THREE.Object3D[] = [];
-      for (const child of parkMistGroup.children) {
-        if (child.userData.scattering) continue;
-        const gp = worldToGrid(child.position.x, child.position.z);
-        if (isOwnedParkTile(g.get(gp.x, gp.y))) doomed.push(child);
-      }
-      for (const c of doomed) {
-        parkMistGroup.remove(c);
-        c.traverse((o) => {
-          const m = (o as THREE.Mesh).material;
-          if (m instanceof THREE.Material) m.dispose();
-        });
-      }
-      return;
-    }
+  /** Ground mist removed — cirrus lives in the sky only. */
+  const seedParkMist = (_sim: Simulation) => {
+    if (mistSeeded) return;
     mistSeeded = true;
-    mistLandSig = landSig;
-
     while (parkMistGroup.children.length > 0) {
-      const c = parkMistGroup.children[0]!;
-      parkMistGroup.remove(c);
-      c.traverse((o) => {
-        const m = (o as THREE.Mesh).material;
-        if (m instanceof THREE.Material) m.dispose();
-      });
-    }
-
-    const candidates: { wx: number; wz: number }[] = [];
-    for (let y = 1; y < g.height - 1; y += 2) {
-      for (let x = 1; x < g.width - 1; x += 2) {
-        const kind = g.get(x, y);
-        // Unowned fog only — never grass/path/parking/road (owned / purchased)
-        if (kind !== "cloud" && kind !== "locked") continue;
-        const p = gridToWorld(x, y, 0);
-        candidates.push({ wx: p.x, wz: p.z });
-      }
-    }
-    const count = Math.min(18, candidates.length);
-    for (let i = 0; i < count; i++) {
-      const c = candidates[(i * 7) % candidates.length]!;
-      const id = `mist_${mistIdSeq++}`;
-      const feather = makeCirrusFeather(0.85 + (i % 4) * 0.12);
-      feather.position.set(
-        c.wx + ((i * 13) % 5) * 0.12 - 0.24,
-        3.6 + (i % 4) * 0.55,
-        c.wz + ((i * 17) % 5) * 0.12 - 0.24,
-      );
-      feather.rotation.y = (i * 0.7) % (Math.PI * 2);
-      feather.userData = {
-        scatterable: true,
-        mistId: id,
-        scattering: false,
-        vx: 0,
-        vy: 0,
-        vz: 0,
-        life: 0,
-        baseOpacity: 0.34,
-      };
-      parkMistGroup.add(feather);
+      parkMistGroup.remove(parkMistGroup.children[0]!);
     }
   };
 
-  const tickParkMist = (dt: number) => {
-    const doomed: THREE.Object3D[] = [];
-    for (const child of parkMistGroup.children) {
-      const ud = child.userData;
-      if (!ud.scattering) continue;
-      child.position.x += (ud.vx as number) * dt;
-      child.position.y += (ud.vy as number) * dt;
-      child.position.z += (ud.vz as number) * dt;
-      ud.vx *= 0.94;
-      ud.vz *= 0.94;
-      ud.vy = (ud.vy as number) * 0.97 + 1.8 * dt;
-      ud.life = (ud.life as number) - dt;
-      const t = Math.max(0, Math.min(1, (ud.life as number) / 1.1));
-      child.traverse((o) => {
-        const mat = (o as THREE.Mesh).material;
-        if (mat instanceof THREE.MeshStandardMaterial) {
-          mat.opacity = (ud.baseOpacity as number) * t;
-        }
-      });
-      child.scale.multiplyScalar(1 + dt * 0.35);
-      if ((ud.life as number) <= 0 || child.position.y > 18) {
-        doomed.push(child);
-      }
-    }
-    for (const c of doomed) {
-      parkMistGroup.remove(c);
-      c.traverse((o) => {
-        const mat = (o as THREE.Mesh).material;
-        if (mat instanceof THREE.Material) mat.dispose();
-      });
-    }
+  const tickParkMist = (_dt: number) => {
+    /* no ground mist */
   };
 
   const zoomListeners = new Set<(z: number) => void>();
@@ -641,6 +490,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
 
   const centerOnGate = (sim: Simulation) => {
     mapBounds = gridWorldBounds(sim.grid.width, sim.grid.height);
+    fitFlatWorld();
     const mid = gridToWorld(sim.grid.width / 2, sim.grid.height / 2, 0);
     camTarget.set(mid.x, 0.4, mid.z);
     const g = sim.grid.gatePos;
@@ -663,10 +513,10 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       TILE_COLORS.cloud = 0x4a9e32;
       TILE_COLORS.locked = 0x3f8a2c;
       meadowMat.color.set(0x58b83a);
-      scene.background = new THREE.Color("#7eb8dc");
+      scene.background = new THREE.Color("#6eb0dc");
       if (scene.fog instanceof THREE.FogExp2) {
-        scene.fog.color.set("#a8cce0");
-        scene.fog.density = 0.012;
+        scene.fog.color.set("#9ec8e0");
+        scene.fog.density = 0.006;
       }
       farMat.color.set(0x6a8499);
       hemi.color.set(0xb8d4ef);
@@ -677,10 +527,10 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       TILE_COLORS.cloud = 0x3f9430;
       TILE_COLORS.locked = 0x368028;
       meadowMat.color.set(0x4aad36);
-      scene.background = new THREE.Color("#6aa8d0");
+      scene.background = new THREE.Color("#5aa0cb");
       if (scene.fog instanceof THREE.FogExp2) {
-        scene.fog.color.set("#98c0d8");
-        scene.fog.density = 0.011;
+        scene.fog.color.set("#90bcd8");
+        scene.fog.density = 0.0055;
       }
       farMat.color.set(0x5a7088);
       hemi.color.set(0xc8d8ef);
@@ -690,10 +540,10 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       TILE_COLORS.cloud = 0x358636;
       TILE_COLORS.locked = 0x2e7230;
       meadowMat.color.set(0x3f9a40);
-      scene.background = new THREE.Color("#5a98c8");
+      scene.background = new THREE.Color("#4a90c0");
       if (scene.fog instanceof THREE.FogExp2) {
-        scene.fog.color.set("#88b0d0");
-        scene.fog.density = 0.01;
+        scene.fog.color.set("#80b0d0");
+        scene.fog.density = 0.005;
       }
       farMat.color.set(0x4a5a78);
       hemi.color.set(0xd0d8f0);
@@ -753,6 +603,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     lastTileSig = sig;
 
     mapBounds = gridWorldBounds(g.width, g.height);
+    fitFlatWorld();
 
     for (const m of tileMeshes.values()) {
       tilesGroup.remove(m);
@@ -762,20 +613,12 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       fogCloudsGroup.remove(fogCloudsGroup.children[0]!);
     }
 
-    /**
-     * Cliff-edge feather clouds only — never on grass/path/parking/road (owned).
-     * Soft cirrus wisps past the cliff face, not solid textured tiles on the meadow.
-     */
-    const cliffRim: { wx: number; wz: number }[] = [];
-
     for (let y = 0; y < g.height; y++) {
       for (let x = 0; x < g.width; x++) {
         const kind = g.get(x, y);
         const p = gridToWorld(x, y, 0);
-        const onRim = x === 0 || y === 0 || x === g.width - 1 || y === g.height - 1;
 
         if (kind === "void") {
-          if (onRim) cliffRim.push({ wx: p.x, wz: p.z });
           continue;
         }
 
@@ -793,41 +636,6 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         tilesGroup.add(mesh);
         tileMeshes.set(`${x},${y}`, mesh);
       }
-    }
-
-    if (cliffRim.length > 0) {
-      const midX = mapBounds.centerX;
-      const midZ = mapBounds.centerZ;
-      // Subsample rim so feathers stay airy, not a solid wall
-      cliffRim.forEach((c, i) => {
-        if (i % 2 !== 0) return;
-        const dx = c.wx - midX;
-        const dz = c.wz - midZ;
-        const len = Math.hypot(dx, dz) || 1;
-        const nx = dx / len;
-        const nz = dz / len;
-        const feather = makeCirrusFeather(1.05 + (i % 3) * 0.12);
-        feather.position.set(
-          c.wx + nx * 1.85,
-          2.4 + (i % 4) * 0.45,
-          c.wz + nz * 1.85,
-        );
-        feather.rotation.y = Math.atan2(nx, nz) + Math.PI / 2;
-        feather.userData = { cliffEdge: true, i, scatterable: false };
-        fogCloudsGroup.add(feather);
-
-        if (i % 4 === 0) {
-          const feather2 = makeCirrusFeather(0.9);
-          feather2.position.set(
-            c.wx + nx * 2.6,
-            1.6 + (i % 3) * 0.35,
-            c.wz + nz * 2.6,
-          );
-          feather2.rotation.y = Math.atan2(nx, nz);
-          feather2.userData = { cliffEdge: true, i: i + 1000, scatterable: false };
-          fogCloudsGroup.add(feather2);
-        }
-      });
     }
 
     // שער פנטזיה — אבן + זהב (starting-zone portal), לא פלסטיק כחול
@@ -1169,38 +977,41 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     if (band === lastDayBand) return;
     lastDayBand = band;
     const tier = lastZoneTier < 0 ? 0 : lastZoneTier;
-    const daySky = tier === 0 ? "#7eb8dc" : tier === 1 ? "#6aa8d0" : "#5a98c8";
-    const dayFog = tier === 0 ? "#a8cce0" : tier === 1 ? "#98c0d8" : "#88b0d0";
+    const daySky = tier === 0 ? "#6eb0dc" : tier === 1 ? "#5aa0cb" : "#4a90c0";
+    const dayFog = tier === 0 ? "#9ec8e0" : tier === 1 ? "#90bcd8" : "#80b0d0";
     if (band === 2) {
       scene.background = new THREE.Color("#0b1220");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#0b1220");
-        scene.fog.density = 0.02;
+        scene.fog.density = 0.014;
       }
       hemi.intensity = 0.25;
       sun.intensity = 0.25;
       sun.color.set("#93c5fd");
       rim.intensity = 0.15;
+      skyGroup.visible = false;
     } else if (band === 1) {
       scene.background = new THREE.Color("#c47a3a");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#c47a3a");
-        scene.fog.density = 0.016;
+        scene.fog.density = 0.01;
       }
       hemi.intensity = 0.45;
       sun.color.set("#ffb070");
       sun.intensity = 0.85;
       rim.intensity = 0.25;
+      skyGroup.visible = true;
     } else {
       scene.background = new THREE.Color(daySky);
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set(dayFog);
-        scene.fog.density = tier === 2 ? 0.01 : tier === 1 ? 0.011 : 0.012;
+        scene.fog.density = tier === 2 ? 0.005 : tier === 1 ? 0.0055 : 0.006;
       }
       hemi.intensity = 0.55;
       sun.intensity = tier === 0 ? 1.35 : tier === 1 ? 1.45 : 1.55;
       sun.color.set(tier >= 2 ? "#fff0c8" : "#ffe2b0");
       rim.intensity = 0.35;
+      skyGroup.visible = true;
     }
   };
 
@@ -1212,32 +1023,9 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     };
   };
 
-  const blowCloudsAt = (clientX: number, clientY: number): boolean => {
-    const ndc = clientToNdc(clientX, clientY);
-    raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), camera);
-    if (!raycaster.ray.intersectPlane(groundPlane, hit)) return false;
-
-    const points: { id: string; x: number; z: number }[] = [];
-    const byId = new Map<string, THREE.Object3D>();
-    for (const child of parkMistGroup.children) {
-      const ud = child.userData;
-      if (!ud.scatterable || ud.scattering || ud.cliffEdge) continue;
-      const id = ud.mistId as string;
-      points.push({ id, x: child.position.x, z: child.position.z });
-      byId.set(id, child);
-    }
-    const impulses = computeWindBurst(hit.x, hit.z, points, WIND_BURST_RADIUS);
-    if (impulses.length === 0) return false;
-    for (const imp of impulses) {
-      const obj = byId.get(imp.id);
-      if (!obj) continue;
-      obj.userData.scattering = true;
-      obj.userData.vx = imp.vx;
-      obj.userData.vy = imp.vy;
-      obj.userData.vz = imp.vz;
-      obj.userData.life = 0.85 + Math.random() * 0.45;
-    }
-    return true;
+  const blowCloudsAt = (_clientX: number, _clientY: number): boolean => {
+    // Ground mist removed; cirrus is sky-only and not finger-scatterable.
+    return false;
   };
 
   const screenToGrid = (clientX: number, clientY: number): GridPos => {
@@ -1297,13 +1085,13 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         orbitYaw -= dx * 0.0055;
         orbitPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, orbitPitch + dy * 0.004));
       } else {
-        // pan במישור העולם לפי כיוון המצלמה
+        // One-finger pan: finger moves right → view follows right (not inverted)
         const radius = BASE_RADIUS / zoom;
         const scale = radius * 0.0026;
         const forward = new THREE.Vector3(Math.sin(orbitYaw), 0, Math.cos(orbitYaw));
         const right = new THREE.Vector3(Math.cos(orbitYaw), 0, -Math.sin(orbitYaw));
-        camTarget.addScaledVector(right, -dx * scale);
-        camTarget.addScaledVector(forward, dy * scale);
+        camTarget.addScaledVector(right, dx * scale);
+        camTarget.addScaledVector(forward, -dy * scale);
       }
       updateCamera();
     },
@@ -1370,6 +1158,12 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       geoCache.plane.dispose();
       visitorTex?.dispose();
       meadowMat.map?.dispose();
+      cirrusTex.dispose();
+      for (const sheet of skySheets) {
+        sheet.geometry.dispose();
+        const mat = sheet.material;
+        if (mat instanceof THREE.Material) mat.dispose();
+      }
       renderer.dispose();
       if (renderer.domElement.parentElement === container) container.removeChild(renderer.domElement);
     },

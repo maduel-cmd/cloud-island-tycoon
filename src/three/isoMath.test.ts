@@ -22,11 +22,11 @@ describe("isoMath grid ↔ world", () => {
   });
 
   it("gridWorldBounds covers all corners of the map", () => {
-    const b = gridWorldBounds(28, 22);
+    const b = gridWorldBounds(40, 32);
     assert.ok(b.maxX > b.minX);
     assert.ok(b.maxZ > b.minZ);
     const c0 = gridToWorld(0, 0);
-    const c1 = gridToWorld(27, 21);
+    const c1 = gridToWorld(39, 31);
     assert.ok(b.minX <= c0.x && b.maxX >= c0.x);
     assert.ok(b.minZ <= c0.z && b.maxZ >= c0.z);
     assert.ok(b.minX <= c1.x && b.maxX >= c1.x);
