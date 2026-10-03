@@ -37,8 +37,10 @@ export type ThreeParkHandle = {
   zoomBy: (factor: number) => void;
   getZoom: () => number;
   onZoomChange: (fn: (z: number) => void) => () => void;
-  beginPinch: (dist: number) => void;
-  pinch: (dist: number) => void;
+  /** Two-finger gesture start — distance for zoom, angle (rad) for park rotate */
+  beginPinch: (dist: number, angle: number) => void;
+  /** Two-finger move — pinch zooms; twist rotates the park camera around the target */
+  pinch: (dist: number, angle: number) => void;
   endPinch: () => void;
   setHover: (p: GridPos | null) => void;
   /** הזזת מטרה יחסית (WASD) בכיוון המצלמה */
@@ -580,6 +582,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   let dragMode: DragMode = "orbit";
   let lastMouse = { x: 0, y: 0 };
   let pinchDist = 0;
+  let pinchAngle = 0;
   const raycaster = new THREE.Raycaster();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const hit = new THREE.Vector3();
@@ -1261,21 +1264,31 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       zoomListeners.add(fn);
       return () => zoomListeners.delete(fn);
     },
-    beginPinch: (dist) => {
+    beginPinch: (dist, angle) => {
       pinchDist = dist;
+      pinchAngle = angle;
     },
-    pinch: (dist) => {
+    pinch: (dist, angle) => {
       if (pinchDist <= 0) {
         pinchDist = dist;
+        pinchAngle = angle;
         return;
       }
+      // Pinch distance → zoom (unchanged)
       zoom = clampZoom(zoom * (dist / pinchDist));
       pinchDist = dist;
+      // Two-finger twist → rotate park camera (HUD chrome stays fixed)
+      let dAng = angle - pinchAngle;
+      while (dAng > Math.PI) dAng -= Math.PI * 2;
+      while (dAng < -Math.PI) dAng += Math.PI * 2;
+      orbitYaw -= dAng;
+      pinchAngle = angle;
       updateCamera();
       emitZoom();
     },
     endPinch: () => {
       pinchDist = 0;
+      pinchAngle = 0;
     },
     nudge: (forwardAmt, rightAmt) => {
       const forward = new THREE.Vector3(Math.sin(orbitYaw), 0, Math.cos(orbitYaw));

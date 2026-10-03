@@ -9,6 +9,7 @@ export type ThumbShape =
   | "tower"
   | "water"
   | "stall"
+  | "path"
   | "util"
   | "generic";
 
@@ -128,6 +129,16 @@ export function IsoThumb({
             <rect x="28" y="48" width="44" height="22" rx="3" fill={color} />
             <path d="M22 48 L50 28 L78 48 Z" fill="#fff7ed" stroke={accent} strokeWidth="2" />
             <circle cx="50" cy="42" r="5" fill={accent} />
+          </>
+        )}
+        {shape === "path" && (
+          <>
+            {/* Iso road tiles — reads as path to lay, not a service building */}
+            <polygon points="50,28 72,40 50,52 28,40" fill={color} stroke={accent} strokeWidth="1.5" />
+            <polygon points="50,40 72,52 50,64 28,52" fill={accent} opacity="0.85" stroke={color} strokeWidth="1" />
+            <polygon points="50,52 72,64 50,76 28,64" fill={color} stroke={accent} strokeWidth="1.5" />
+            <line x1="42" y1="44" x2="58" y2="54" stroke="#fff" strokeWidth="1.2" opacity="0.55" />
+            <line x1="42" y1="56" x2="58" y2="66" stroke="#fff" strokeWidth="1.2" opacity="0.55" />
           </>
         )}
         {shape === "util" && (
