@@ -260,7 +260,7 @@ export function buildBinMesh(mat: MatFn, tier = 1): THREE.Group {
   bag.visible = false;
   g.add(bag);
   addShadow(g);
-  tryApplyEntityLook(g, "prop", "bin");
+  tryApplyEntityLook(g, "prop", "bin", undefined, undefined, s);
   return g;
 }
 
@@ -319,7 +319,7 @@ export function buildBenchMesh(mat: MatFn, tier = 1): THREE.Group {
     g.add(planter);
   }
   addShadow(g);
-  tryApplyEntityLook(g, "prop", "bench");
+  tryApplyEntityLook(g, "prop", "bench", undefined, undefined, s);
   return g;
 }
 
@@ -523,7 +523,7 @@ export function buildDecorMesh(mat: MatFn, kind: string, key: string, tier = 1):
     g.userData.swayHeads = heads;
   }
   addShadow(g);
-  tryApplyEntityLook(g, "prop", kind, { w: 1, h: 1 });
+  tryApplyEntityLook(g, "prop", kind, { w: 1, h: 1 }, undefined, s);
   return g;
 }
 
@@ -598,7 +598,7 @@ export function buildWarehouseMesh(mat: MatFn, tier = 1): THREE.Group {
     g.add(sky, door2);
   }
   addShadow(g);
-  tryApplyEntityLook(g, "prop", "warehouse");
+  tryApplyEntityLook(g, "prop", "warehouse", undefined, undefined, s);
   return g;
 }
 

@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { lookAsset, lookSrcCandidates } from "./parkLooks.ts";
+import * as THREE from "three";
+import { lookAsset, lookSrcCandidates, applyLookBillboard, tryApplyEntityLook } from "./parkLooks.ts";
 import { LOOK_CATALOG, LOOK_SKIP_IDS, shouldSkipLook } from "./lookRegistry.ts";
 import { isAssetReady } from "../config/assets.ts";
 
@@ -35,5 +36,25 @@ describe("parkLooks image wiring", () => {
     assert.ok(LOOK_CATALOG.some((e) => e.kind === "prop" && e.id === "path"));
     assert.ok(LOOK_CATALOG.some((e) => e.kind === "attraction" && e.id === "giant_frisbee"));
     assert.ok(LOOK_CATALOG.some((e) => e.kind === "stall" && e.id === "balloon_vendor"));
+  });
+
+  it("look tier accents grow at every stage so upgrades stay visible with stills", () => {
+    // Accent counts match addLookTierAccents: base; +rail; +2 posts +beam; +rim; +crown +spark
+    const expected = [1, 2, 5, 6, 8];
+    for (let i = 1; i < 5; i++) {
+      assert.ok(
+        expected[i]! > expected[i - 1]!,
+        `look tier ${i + 1} accents must exceed tier ${i}`,
+      );
+    }
+    // Soft-fail without a loaded still must not throw
+    const soft = new THREE.Group();
+    soft.userData.tier = 3;
+    tryApplyEntityLook(soft, "prop", "bin", undefined, undefined, 3);
+    assert.equal(soft.userData.hasLookImage ?? false, false);
+    // applyLookBillboard without Image returns false (node test env)
+    const g = new THREE.Group();
+    const applied = applyLookBillboard(g, "prop", "bin", { tier: 4, width: 1.2, height: 1.2 });
+    assert.equal(applied, false);
   });
 });

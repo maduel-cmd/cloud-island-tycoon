@@ -477,6 +477,12 @@ function buildFerris(
       counter.position.set(-0.55, 0.35, 0);
       g.add(counter);
     }
+    if (isHigh) {
+      // Top-level stage-4 body (nested pivot size changes alone do not count)
+      const booth = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.4, 0.4), mat(`${key}_booth`, BRIGHT.wood));
+      booth.position.set(0.55, 0.35, 0.35);
+      g.add(booth);
+    }
     const pivot = new THREE.Group();
     pivot.position.y = isPeak ? 0.95 : isHigh ? 0.85 : 0.7;
     const armLen = isPeak ? 1.5 : isHigh ? 1.35 : 1.0;
@@ -563,6 +569,12 @@ function buildCarouselRide(
       trim.position.y = roof.position.y - 0.15;
       g.add(trim);
     }
+    if (isHigh) {
+      // Top-level stage-4 ticket kiosk — nested horse row alone does not count
+      const kiosk = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.35), mat(`${key}_kiosk`, BRIGHT.wood));
+      kiosk.position.set(0.85, baseY + 0.25, 0.55);
+      g.add(kiosk);
+    }
     if (isPeak) {
       const finial = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), emissiveAccent(mat, `${key}_fin`, accent, 0.7));
       finial.position.y = roof.position.y + 0.35;
@@ -604,6 +616,12 @@ function buildCarouselRide(
       ring.rotation.x = Math.PI / 2;
       ring.position.y = baseY + poleH * 0.55;
       g.add(ring);
+    }
+    if (isHigh) {
+      // Top-level stage-4 queue rail — nested chair count alone does not count
+      const queue = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.08), mat(`${key}_queue`, BRIGHT.metal));
+      queue.position.set(0, baseY + 0.35, 0.55);
+      g.add(queue);
     }
     if (isPeak) {
       const tip = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.22, 6), mat(`${key}_tip`, accent));
@@ -774,6 +792,10 @@ function buildShipRide(
     cannon.rotation.z = Math.PI / 2;
     cannon.position.set(0.55, -0.5, 0);
     swing.add(deck2, cannon);
+    // Top-level stage-4 ticket booth — nested swing parts alone do not count
+    const booth = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.35, 0.3), mat(`${key}_booth`, BRIGHT.wood));
+    booth.position.set(-0.65, 0.35, 0.4);
+    g.add(booth);
   }
   if (tier >= 4) {
     const light = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), emissiveAccent(mat, `${key}_lite`, accent, 0.8));
@@ -816,6 +838,12 @@ function buildTeacups(
     const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.22, 10), mat(`${key}_pot`, accent));
     pot.position.y = disc.position.y + 0.18;
     g.add(pot);
+  }
+  if (isHigh) {
+    // Top-level stage-4 canopy — nested cup count alone does not count
+    const canopy = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 0.08, 10), mat(`${key}_canopy`, color));
+    canopy.position.y = disc.position.y + 0.55;
+    g.add(canopy);
   }
   if (isPeak) {
     const spout = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.025, 6, 10, Math.PI), mat(`${key}_spout`, BRIGHT.metal));
@@ -1110,6 +1138,12 @@ function buildGameRide(
       scale.position.set(-0.1, h * 0.45, 0.15);
       g.add(scale);
     }
+    if (isHigh) {
+      // Top-level stage-4 anvil pad — pole height alone does not count
+      const anvil = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.25), mat(`${key}_anvil`, BRIGHT.metal));
+      anvil.position.set(0.35, 0.2, 0.15);
+      g.add(anvil);
+    }
     if (peak(tier)) {
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.12, 8), mat(`${key}_base`, BRIGHT.wood));
       base.position.set(0, 0.2, 0.15);
@@ -1208,6 +1242,12 @@ function buildGenericRide(
       hub.position.y = 0.05;
       arm.add(hub);
     }
+    if (isHigh) {
+      // Top-level stage-4 body — nested arm changes alone do not count
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 0.4), mat(`${key}_pad`, BRIGHT.stoneDark));
+      pad.position.set(0, 0.2, 0.35);
+      g.add(pad);
+    }
     if (peak(tier)) {
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.03, 6, 14), mat(`${key}_rim`, accent));
       rim.position.y = seat.position.y;
@@ -1252,6 +1292,10 @@ function buildGenericRide(
         arm.add(car);
         cars.push(car);
       }
+      // Top-level stage-4 body so t4 ≠ t3
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.35), mat(`${key}_brace`, BRIGHT.stoneDark));
+      brace.position.set(0, 0.18, 0.3);
+      g.add(brace);
     }
     if (peak(tier)) {
       const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), mat(`${key}_tip`, accent));
@@ -1417,6 +1461,14 @@ function buildGenericRide(
       depot.position.set(-0.45, 0.35, 0.35);
       g.add(depot);
     }
+    if (isHigh) {
+      // Top-level stage-4 signal — track radius alone does not count
+      const signal = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.55, 6), mat(`${key}_sig`, BRIGHT.metal));
+      signal.position.set(0.55, 0.45, 0.4);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), emissiveAccent(mat, `${key}_sigl`, 0xef4444, 0.7));
+      lamp.position.set(0.55, 0.75, 0.4);
+      g.add(signal, lamp);
+    }
     if (peak(tier)) {
       const smoke = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), mat(`${key}_smoke`, 0xe5e7eb, { transparent: true, opacity: 0.55 }));
       smoke.position.set(0.08, track.position.y + 0.45, 0);
@@ -1453,6 +1505,10 @@ function buildGenericRide(
       const tower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.12), mat(`${key}_ct`, accent));
       tower.position.set(0, 0.2, 0);
       sub.add(tower);
+      // Top-level stage-4 gangway — nested tower alone does not count
+      const gang = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.06, 0.45), mat(`${key}_gang`, BRIGHT.wood));
+      gang.position.set(-0.55, pool.position.y + 0.1, 0.25);
+      g.add(gang);
     }
     if (peak(tier)) {
       const fin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.18), mat(`${key}_fin`, accent));
@@ -1571,7 +1627,7 @@ export function buildAttractionMesh(
   g.userData.broken = broken;
   g.userData.tier = visualTier;
   addShadow(g);
-  if (!broken) tryApplyEntityLook(g, "attraction", def.id, def.footprint);
+  if (!broken) tryApplyEntityLook(g, "attraction", def.id, def.footprint, undefined, visualTier);
   return g;
 }
 
@@ -1873,7 +1929,7 @@ export function buildStallMesh(def: StallDef, mat: MatFn, tier = 1): THREE.Group
     g.userData.defId = def.id;
     g.userData.tier = t;
     addShadow(g);
-    tryApplyEntityLook(g, "stall", def.id);
+    tryApplyEntityLook(g, "stall", def.id, undefined, undefined, t);
     return g;
   }
 
@@ -1906,11 +1962,16 @@ export function buildStallMesh(def: StallDef, mat: MatFn, tier = 1): THREE.Group
       sign.position.set(0, 1.25, 0.2);
       g.add(curtain2, sign);
     }
+    if (peak(t)) {
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), emissiveAccent(mat, `${key}_peak`, BRIGHT.gold, 0.85));
+      lamp.position.set(0, 1.45, 0.15);
+      g.add(lamp);
+    }
     pushCycle(g, { type: "flash", light: flash, period: 0.9 });
     g.userData.defId = def.id;
     g.userData.tier = t;
     addShadow(g);
-    tryApplyEntityLook(g, "stall", def.id);
+    tryApplyEntityLook(g, "stall", def.id, undefined, undefined, t);
     return g;
   }
 
@@ -1922,10 +1983,21 @@ export function buildStallMesh(def: StallDef, mat: MatFn, tier = 1): THREE.Group
 
   buildStallProduct(g, def.id, mat, key, col, t, isHigh);
 
+  if (peak(t)) {
+    const crestPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 5), mat(`${key}_crest_pole`, BRIGHT.metal));
+    crestPole.position.set(0, 1.15, -0.1);
+    const crest = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.08, 0.08),
+      emissiveAccent(mat, `${key}_crest`, BRIGHT.gold, 0.75),
+    );
+    crest.position.set(0, 1.35, -0.1);
+    g.add(crestPole, crest);
+  }
+
   g.userData.defId = def.id;
   g.userData.tier = t;
   addShadow(g);
-  tryApplyEntityLook(g, "stall", def.id);
+  tryApplyEntityLook(g, "stall", def.id, undefined, undefined, t);
   return g;
 }
 

@@ -1,5 +1,5 @@
 /* Minimal service worker — enables installability (Add to Home Screen / desktop app) */
-const CACHE = "cit-shell-v3-pan-follow";
+const CACHE = "cit-shell-v4-tier-looks";
 const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

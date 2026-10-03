@@ -231,6 +231,10 @@ describe("RideMeshes unique silhouettes + cycles", () => {
         `${id} stage 3 must differ from stage 2 (${t2.children.length} → ${t3.children.length})`,
       );
       assert.ok(
+        t4.children.length > t3.children.length,
+        `${id} stage 4 must differ from stage 3 (${t3.children.length} → ${t4.children.length})`,
+      );
+      assert.ok(
         t5.children.length > t4.children.length,
         `${id} stage 5 must differ from stage 4 (${t4.children.length} → ${t5.children.length})`,
       );
@@ -281,6 +285,17 @@ describe("RideMeshes unique silhouettes + cycles", () => {
       assert.ok(
         t3.children.length > t2.children.length,
         `${def.id} stage 3 must differ from stage 2 (${t2.children.length} → ${t3.children.length})`,
+      );
+    }
+  });
+
+  it("stall stage 5 changes the body after stage 4", () => {
+    for (const def of STALLS) {
+      const t4 = buildStallMesh(def, mat, 4);
+      const t5 = buildStallMesh(def, mat, 5);
+      assert.ok(
+        t5.children.length > t4.children.length,
+        `${def.id} stage 5 must differ from stage 4 (${t4.children.length} → ${t5.children.length})`,
       );
     }
   });

@@ -41,9 +41,14 @@ function ensureLook(
   kind: "attraction" | "stall" | "prop" | "staff",
   id: string,
   footprint?: { w: number; h: number },
+  tier?: number,
 ): void {
-  if (obj.userData.hasLookImage) return;
-  tryApplyEntityLook(obj, kind, id, footprint);
+  const t = Math.max(
+    1,
+    Math.min(5, Math.floor(tier ?? (obj.userData.tier as number) ?? (obj.userData.propTier as number) ?? 1) || 1),
+  );
+  if (obj.userData.hasLookImage && obj.userData.lookTier === t) return;
+  tryApplyEntityLook(obj, kind, id, footprint, undefined, t);
 }
 
 export const THREE_ZOOM_MIN = 0.35;
@@ -777,7 +782,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     }
     gateObj.position.set(gp.x, 0.15, gp.z);
     gateObj.scale.setScalar(1.45);
-    ensureLook(gateObj, "prop", "gate", { w: 2, h: 1 });
+    ensureLook(gateObj, "prop", "gate", { w: 2, h: 1 }, propTier);
 
     // מחסן — sliding door + shelf; high stage second wing
     const whKey = "warehouse";
@@ -834,7 +839,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
-      ensureLook(obj!, "attraction", a.defId, def?.footprint);
+      ensureLook(obj!, "attraction", a.defId, def?.footprint, a.broken ? 1 : a.tier);
       const fw = def?.footprint.w ?? 1;
       const fh = def?.footprint.h ?? 1;
       const p = gridToWorld(a.pos.x + fw / 2 - 0.5, a.pos.y + fh / 2 - 0.5, 0);
@@ -858,7 +863,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
-      ensureLook(obj!, "stall", s.defId);
+      ensureLook(obj!, "stall", s.defId, undefined, s.tier);
       const p = gridToWorld(s.pos.x, s.pos.y, 0);
       obj!.position.set(p.x, 0.12, p.z);
       animateStall(obj!, dt, animTime);
@@ -878,7 +883,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
-      ensureLook(obj, "prop", "bin");
+      ensureLook(obj, "prop", "bin", undefined, propTier);
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
       obj.position.set(p.x, 0, p.z);
@@ -899,7 +904,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
-      ensureLook(obj, "prop", "bench");
+      ensureLook(obj, "prop", "bench", undefined, propTier);
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
       obj.position.set(p.x, 0, p.z);
@@ -921,7 +926,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
-      ensureLook(obj, "prop", kind);
+      ensureLook(obj, "prop", kind, undefined, propTier);
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
       obj.position.set(p.x, 0, p.z);
@@ -1057,7 +1062,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     // מחסן — דלת נפתחת כשרץ ליד המחסן
     const wh = entityMeshes.get("warehouse");
     if (wh && wh.visible) {
-      ensureLook(wh as THREE.Group, "prop", "warehouse");
+      ensureLook(wh as THREE.Group, "prop", "warehouse", undefined, Math.min(5, Math.max(1, Math.floor(sim.state.parkLevel) || 1)));
       const wp = sim.grid.warehousePos;
       const runnerIn =
         sim.state.warehouseBuilt &&
