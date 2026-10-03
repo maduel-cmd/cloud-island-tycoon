@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import type { StaffRole } from "../data/types";
 import { type MatFn, BRIGHT, addShadow, hexToNum } from "./parkStyle";
+import { tryApplyEntityLook } from "./parkLooks";
 
 const ROLE_COLOR: Record<StaffRole, number> = {
   janitor: 0x2563eb,
@@ -78,6 +79,7 @@ export function buildStaffMesh(mat: MatFn, role: StaffRole, id: string): THREE.G
   }
   g.userData.role = role;
   addShadow(g);
+  tryApplyEntityLook(g, "staff", role, { w: 1, h: 1 });
   return g;
 }
 
@@ -165,6 +167,7 @@ export function buildBinMesh(mat: MatFn, tier = 1): THREE.Group {
   bag.visible = false;
   g.add(bag);
   addShadow(g);
+  tryApplyEntityLook(g, "prop", "bin");
   return g;
 }
 
@@ -202,6 +205,7 @@ export function buildBenchMesh(mat: MatFn, tier = 1): THREE.Group {
     g.add(cloth);
   }
   addShadow(g);
+  tryApplyEntityLook(g, "prop", "bench");
   return g;
 }
 
@@ -333,6 +337,7 @@ export function buildDecorMesh(mat: MatFn, kind: string, key: string, tier = 1):
     g.userData.swayHeads = heads;
   }
   addShadow(g);
+  tryApplyEntityLook(g, "prop", kind, { w: 1, h: 1 });
   return g;
 }
 

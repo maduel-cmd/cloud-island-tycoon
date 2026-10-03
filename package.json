@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "npx --yes tsx --test src/core/Pathfinding.test.ts src/core/facilityConnectivity.test.ts src/managers/visitorMood.test.ts src/managers/visitorAiMood.test.ts src/managers/binsCleanliness.test.ts src/managers/benchesMood.test.ts src/managers/decorMood.test.ts src/managers/starterPark.memory.test.ts src/managers/firstLoop.persist.test.ts src/data/catalog.test.ts src/assets/sprites/CharacterArt.test.ts src/assets/sprites/VisitorSheet.test.ts src/config/assets.test.ts src/i18n/i18n.test.ts src/assets/sprites/zoomLod.test.ts src/three/isoMath.test.ts src/three/RideMeshes.test.ts",
+    "test": "npx --yes tsx --test src/core/Pathfinding.test.ts src/core/facilityConnectivity.test.ts src/managers/visitorMood.test.ts src/managers/visitorAiMood.test.ts src/managers/binsCleanliness.test.ts src/managers/benchesMood.test.ts src/managers/decorMood.test.ts src/managers/starterPark.memory.test.ts src/managers/firstLoop.persist.test.ts src/data/catalog.test.ts src/assets/sprites/CharacterArt.test.ts src/assets/sprites/VisitorSheet.test.ts src/config/assets.test.ts src/i18n/i18n.test.ts src/assets/sprites/zoomLod.test.ts src/three/isoMath.test.ts src/three/RideMeshes.test.ts src/three/parkLooks.test.ts",
     "lint": "echo \"lint ok\""
   },
   "dependencies": {

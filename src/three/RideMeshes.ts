@@ -15,6 +15,7 @@ import {
   stoneBase,
   emissiveAccent,
 } from "./parkStyle";
+import { tryApplyEntityLook } from "./parkLooks";
 
 export type { MatFn } from "./parkStyle";
 
@@ -1123,11 +1124,17 @@ export function buildAttractionMesh(
   g.userData.broken = broken;
   g.userData.tier = visualTier;
   addShadow(g);
+  if (!broken) tryApplyEntityLook(g, "attraction", def.id, def.footprint);
   return g;
 }
 
 export function animateAttraction(obj: THREE.Object3D, dt: number, broken: boolean, time: number): void {
   if (broken) return;
+  const look = obj.getObjectByName("lookBillboard");
+  if (look) {
+    // soft sway so the look plate stays lively without replacing ride cycles
+    look.rotation.y = Math.sin(time * 0.7) * 0.08;
+  }
   const cycles = obj.userData.cycles as Cycle[] | undefined;
   if (!cycles) return;
   for (const c of cycles) {
@@ -1379,22 +1386,35 @@ export function buildStallMesh(def: StallDef, mat: MatFn, tier = 1): THREE.Group
     g.userData.defId = def.id;
     g.userData.tier = t;
     addShadow(g);
+    // Prefer existing balloon tile when present; otherwise looks/stall/balloon_vendor.*
+    tryApplyEntityLook(g, "stall", def.id, undefined, "/assets/balloon-vendor-tile.jpg");
     return g;
   }
 
   if (def.id === "photo_booth") {
     const g = new THREE.Group();
-    const booth = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.9 : 0.55, 1.1, 0.55), mat(`${key}_booth`, colorSafe(col)));
+    const booth = new THREE.Mesh(
+      new THREE.BoxGeometry(isHigh ? 1.05 : 0.55, 1.1, isHigh ? 0.65 : 0.55),
+      mat(`${key}_booth`, colorSafe(col)),
+    );
     booth.position.y = 0.65;
-    const curtain = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.7), mat(`${key}_curt`, 0xdc2626));
-    curtain.position.set(0, 0.7, 0.29);
+    const curtain = new THREE.Mesh(new THREE.PlaneGeometry(isHigh ? 0.55 : 0.35, 0.7), mat(`${key}_curt`, 0xdc2626));
+    curtain.position.set(isHigh ? -0.2 : 0, 0.7, isHigh ? 0.34 : 0.29);
     const flash = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), emissiveAccent(mat, `${key}_flash`, 0xfef08a, 0.95));
     flash.position.set(0.15, 1.15, 0.2);
     g.add(booth, curtain, flash);
+    if (isHigh) {
+      const curtain2 = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.7), mat(`${key}_curt2`, 0xb91c1c));
+      curtain2.position.set(0.28, 0.7, 0.34);
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.2, 8), mat(`${key}_stool`, BRIGHT.wood));
+      stool.position.set(-0.15, 0.25, 0.05);
+      g.add(curtain2, stool);
+    }
     pushCycle(g, { type: "flash", light: flash, period: 0.9 });
     g.userData.defId = def.id;
     g.userData.tier = t;
     addShadow(g);
+    tryApplyEntityLook(g, "stall", def.id);
     return g;
   }
 
@@ -1409,6 +1429,7 @@ export function buildStallMesh(def: StallDef, mat: MatFn, tier = 1): THREE.Group
   g.userData.defId = def.id;
   g.userData.tier = t;
   addShadow(g);
+  tryApplyEntityLook(g, "stall", def.id);
   return g;
 }
 
@@ -1418,11 +1439,9 @@ function buildStallProduct(
   mat: MatFn,
   key: string,
   col: number,
-  tier: number,
+  _tier: number,
   isHigh: boolean,
 ): void {
-  const lit = tier >= 4;
-
   if (id === "espresso_bar") {
     const machine = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.25), mat(`${key}_mach`, BRIGHT.metal));
     machine.position.set(-0.15, 0.7, 0);
@@ -1477,32 +1496,43 @@ function buildStallProduct(
       g.add(big, box);
     }
   } else if (id === "burger_shack") {
-    const grill = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.7 : 0.45, 0.08, 0.35), mat(`${key}_grill`, BRIGHT.black));
+    const grill = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.75 : 0.45, 0.08, 0.35), mat(`${key}_grill`, BRIGHT.black));
     grill.position.set(0, 0.6, 0);
     const burger = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.12, 10), mat(`${key}_burg`, col));
     burger.position.set(0.2, 0.75, 0.1);
     g.add(grill, burger);
     const puffs: THREE.Object3D[] = [];
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < (isHigh ? 4 : 2); i++) {
       const p = new THREE.Mesh(new THREE.SphereGeometry(0.04, 5, 5), mat(`${key}_sm${i}`, 0xe5e7eb, { transparent: true, opacity: 0.45 }));
-      p.position.set(0, 0.75, 0);
+      p.position.set(-0.1 + i * 0.08, 0.75, 0);
       g.add(p);
       puffs.push(p);
     }
     pushCycle(g, { type: "steam", puffs, speed: 0.5 });
+    if (isHigh) {
+      const patty = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 10), mat(`${key}_patty`, 0x78350f));
+      patty.position.set(-0.2, 0.72, 0.1);
+      g.add(patty);
+    }
   } else if (id === "pizza_slice") {
     const oven = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(`${key}_oven`, 0x78716c));
     oven.position.y = 0.55;
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.45 : 0.3, 0.22, 0.08), mat(`${key}_mouth`, BRIGHT.black));
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.5 : 0.3, 0.22, 0.08), mat(`${key}_mouth`, BRIGHT.black));
     mouth.position.set(0, 0.55, 0.32);
     const slice = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.05, 3), mat(`${key}_slice`, col));
     slice.position.set(0.3, 0.6, 0.15);
-    g.add(oven, mouth, slice);
-    if (lit || isHigh) {
-      const fire = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), emissiveAccent(mat, `${key}_fire`, 0xf97316, 0.9));
-      fire.position.set(0, 0.55, 0.28);
-      g.add(fire);
-      pushCycle(g, { type: "blink", obj: fire, period: 0.35 });
+    const fire = new THREE.Mesh(
+      new THREE.SphereGeometry(isHigh ? 0.1 : 0.08, 6, 6),
+      emissiveAccent(mat, `${key}_fire`, 0xf97316, 0.9),
+    );
+    fire.position.set(0, 0.55, 0.28);
+    g.add(oven, mouth, slice, fire);
+    pushCycle(g, { type: "blink", obj: fire, period: 0.35 });
+    if (isHigh) {
+      const lip = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 6, 16, Math.PI), mat(`${key}_lip`, 0x57534e));
+      lip.position.set(0, 0.55, 0.3);
+      lip.rotation.x = Math.PI / 2;
+      g.add(lip);
     }
   } else if (id === "gelato") {
     const freezer = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.35, 0.4), mat(`${key}_fr`, 0xe2e8f0));
@@ -1599,7 +1629,7 @@ function buildStallProduct(
       g.add(iron2);
     }
   } else if (id === "taco_corner") {
-    const plancha = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.7 : 0.45, 0.06, 0.35), mat(`${key}_pl`, BRIGHT.metal));
+    const plancha = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.75 : 0.45, 0.06, 0.35), mat(`${key}_pl`, BRIGHT.metal));
     plancha.position.set(0, 0.6, 0);
     const taco = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.06, 3, 1, false, 0, Math.PI), mat(`${key}_taco`, col));
     taco.position.set(0.2, 0.72, 0.1);
@@ -1610,6 +1640,14 @@ function buildStallProduct(
     g.add(p);
     puffs.push(p);
     pushCycle(g, { type: "steam", puffs, speed: 0.9 });
+    if (isHigh) {
+      const taco2 = taco.clone();
+      taco2.position.set(-0.15, 0.72, 0.1);
+      const puff2 = p.clone();
+      puff2.position.set(0.2, 0.8, 0);
+      g.add(taco2, puff2);
+      puffs.push(puff2);
+    }
   } else if (id === "fried_chicken") {
     const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.25, 10), mat(`${key}_bucket`, col));
     bucket.position.set(0.25, 0.65, 0);
@@ -1624,13 +1662,24 @@ function buildStallProduct(
     }
   } else if (id === "donut_bar") {
     const rack = new THREE.Group();
-    for (let i = 0; i < (isHigh ? 8 : 4); i++) {
+    for (let i = 0; i < 4; i++) {
       const d = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.03, 6, 12), mat(`${key}_d${i}`, [col, 0xf9a8d4, 0xfde68a, 0xa7f3d0][i % 4]!));
-      d.position.set(-0.2 + (i % 4) * 0.14, 0.75 + Math.floor(i / 4) * 0.2, 0);
+      d.position.set(-0.2 + i * 0.14, 0.75, 0);
       rack.add(d);
     }
     g.add(rack);
     pushCycle(g, { type: "spin", obj: rack, axis: "y", speed: 0.6 });
+    if (isHigh) {
+      const rack2 = new THREE.Group();
+      for (let i = 0; i < 4; i++) {
+        const d = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.025, 6, 12), mat(`${key}_d2${i}`, [0xf9a8d4, col, 0xa7f3d0, 0xfde68a][i % 4]!));
+        d.position.set(-0.18 + i * 0.12, 0, 0);
+        rack2.add(d);
+      }
+      rack2.position.set(0, 1.0, 0);
+      g.add(rack2);
+      pushCycle(g, { type: "spin", obj: rack2, axis: "y", speed: -0.75 });
+    }
   } else if (id === "smoothie") {
     const blender = new THREE.Group();
     const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.3, 8), mat(`${key}_jar`, col, { transparent: true, opacity: 0.75 }));
@@ -1656,6 +1705,7 @@ function buildStallProduct(
     const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.1, 8), mat(`${key}_mug`, accentOr(col)));
     mug.position.set(0.15, 0.8, 0.1);
     g.add(shelf, hat, mug);
+    pushCycle(g, { type: "bob", obj: hat, baseY: 0.85, amp: 0.04, speed: 1.2 });
     if (isHigh) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.95, 0.15), mat(`${key}_wall`, BRIGHT.wood));
       wall.position.set(0, 0.95, -0.15);

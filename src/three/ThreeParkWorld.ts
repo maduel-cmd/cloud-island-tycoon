@@ -1084,8 +1084,9 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       const dy = y - lastMouse.y;
       lastMouse = { x, y };
       if (dragMode === "orbit") {
-        orbitYaw -= dx * 0.0055;
-        orbitPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, orbitPitch + dy * 0.004));
+        // orbit follows the finger (grab the scene) — same feel as pan
+        orbitYaw += dx * 0.0055;
+        orbitPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, orbitPitch - dy * 0.004));
       } else {
         // pan: המבט עוקב אחרי האצבע/העכבר (ימינה→ימינה, למטה→למטה)
         const radius = BASE_RADIUS / zoom;

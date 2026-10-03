@@ -146,7 +146,11 @@ describe("RideMeshes unique silhouettes + cycles", () => {
       const hi = buildStallMesh(def, mat, 5);
       assert.ok(Math.abs(hi.scale.x - 1) < 1e-6, `${def.id} high stage unit scale`);
       assert.equal(hi.userData.signBoard, undefined, `${def.id} no shared crown`);
-      assert.ok(hi.children.length >= g.children.length, `${def.id} high stage at least as rich`);
+      assert.ok(
+        hi.children.length > g.children.length || (hi.userData.cycles as unknown[]).length > (g.userData.cycles as unknown[]).length,
+        `${def.id} high stage must enrich body or motion`,
+      );
+      assert.ok((hi.userData.cycles as unknown[]).length >= 1, `${def.id} must animate`);
     }
     const balloon = STALLS.find((s) => s.icon === "balloon");
     assert.ok(balloon);
