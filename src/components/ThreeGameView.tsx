@@ -140,8 +140,9 @@ export function ThreeGameView() {
       activePointers.delete(e.pointerId);
       if (activePointers.size < 2) park.endPinch();
 
-      // הקשה בלי גרירה = לחיצה על משבצת
+      // הקשה בלי גרירה = רוח על ענני ערפל מעל הפארק, ואז לחיצה על משבצת
       if (pendingTap && pendingTap.pointerId === e.pointerId && !cameraDragging) {
+        park.blowCloudsAt(e.clientX, e.clientY);
         const pos = park.screenToGrid(e.clientX, e.clientY);
         simulation.handleTileClick(pos);
       }
