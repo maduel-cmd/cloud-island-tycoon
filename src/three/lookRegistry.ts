@@ -8,6 +8,19 @@ export const LOOK_SKIP_IDS: ReadonlySet<string> = new Set([
   // empty — gate + inverted coaster replacements are live
 ]);
 
+/**
+ * Motion-frame packs under public/assets/looks/<kind>/<id>/{0..3}.png.
+ * Skipped: mini_railway (continuous scene cut), inverted_coaster (only 1/4 frames match approved hang).
+ */
+export const MOTION_SKIP_IDS: ReadonlySet<string> = new Set([
+  "mini_railway",
+  "inverted_coaster",
+]);
+
+export function shouldSkipMotion(id: string): boolean {
+  return MOTION_SKIP_IDS.has(id);
+}
+
 /** All look assets shipped under public/assets/looks/<kind>/<id>.png */
 export const LOOK_CATALOG: ReadonlyArray<{ kind: LookKind; id: string }> = [
   // attractions

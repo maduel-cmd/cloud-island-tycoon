@@ -6,12 +6,24 @@ running (retargeted onto the look billboard / path tile).
 
 ## Paths
 
-- `attraction/<attractionId>.png`
+- `attraction/<attractionId>.png` — still body
 - `stall/<stallId>.png`
 - `prop/<kind>.png` — `tree`, `bush`, `statue`, `flower`, `bin`, `bench`, `warehouse`, `path`, `gate`
 - `staff/<role>.png` — `janitor`, `runner`, `mechanic`
 
+## Motion frames
+
+Four-frame packs live beside the still:
+
+- `attraction/<id>/{0,1,2,3}.png`
+- `stall/<id>/{0,1,2,3}.png`
+- `prop/<id>/{0,1,2,3}.png` — path frames texture path *tiles*, not a standing card
+- `staff/<id>/{0,1,2,3}.png`
+
 Ids match the game catalog (`sky_coaster`, `balloon_vendor`, `inverted_coaster`, …).
 
-Gate still: two openings + beam + two flags (`prop/gate.png`).
-Inverted coaster still: car hangs under the track (`attraction/inverted_coaster.png`).
+Gate still: two openings + beam + two flags (`prop/gate.png`); motion pack waves the flags.
+Inverted coaster still: car hangs under the track (`attraction/inverted_coaster.png`);
+no motion pack (sheet had only one matching hang frame).
+Mini railway: no motion pack (sheet was one continuous scene sliced into quadrants).
+Broken rides freeze on frame `0.png`.

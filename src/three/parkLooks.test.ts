@@ -1,8 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { lookAsset, lookSrcCandidates, applyLookBillboard, tryApplyEntityLook } from "./parkLooks.ts";
-import { LOOK_CATALOG, LOOK_SKIP_IDS, shouldSkipLook } from "./lookRegistry.ts";
+import { existsSync } from "node:fs";
+import { lookAsset, lookSrcCandidates, motionFrameSrc, applyLookBillboard, tryApplyEntityLook } from "./parkLooks.ts";
+import { LOOK_CATALOG, LOOK_SKIP_IDS, MOTION_SKIP_IDS, shouldSkipLook, shouldSkipMotion } from "./lookRegistry.ts";
 import { isAssetReady } from "../config/assets.ts";
 
 describe("parkLooks image wiring", () => {
@@ -36,6 +37,33 @@ describe("parkLooks image wiring", () => {
     assert.ok(LOOK_CATALOG.some((e) => e.kind === "prop" && e.id === "path"));
     assert.ok(LOOK_CATALOG.some((e) => e.kind === "attraction" && e.id === "giant_frisbee"));
     assert.ok(LOOK_CATALOG.some((e) => e.kind === "stall" && e.id === "balloon_vendor"));
+  });
+
+  it("skips motion packs for inverted coaster and mini railway only", () => {
+    assert.equal(shouldSkipMotion("inverted_coaster"), true);
+    assert.equal(shouldSkipMotion("mini_railway"), true);
+    assert.equal(shouldSkipMotion("gate"), false);
+    assert.equal(shouldSkipMotion("sky_coaster"), false);
+    assert.ok(MOTION_SKIP_IDS.has("inverted_coaster"));
+    assert.ok(MOTION_SKIP_IDS.has("mini_railway"));
+  });
+
+  it("ships four motion frames for wired looks and none for skipped", () => {
+    for (const { kind, id } of LOOK_CATALOG) {
+      if (shouldSkipMotion(id)) {
+        assert.equal(
+          existsSync(`public/assets/looks/${kind}/${id}/0.png`),
+          false,
+          `${id} must not have a motion pack`,
+        );
+        continue;
+      }
+      for (let f = 0; f < 4; f++) {
+        const rel = `public/assets/looks/${kind}/${id}/${f}.png`;
+        assert.ok(existsSync(rel), `missing ${rel}`);
+        assert.equal(motionFrameSrc(kind, id, f), `/assets/looks/${kind}/${id}/${f}.png`);
+      }
+    }
   });
 
   it("look tier accents grow at every stage so upgrades stay visible with stills", () => {

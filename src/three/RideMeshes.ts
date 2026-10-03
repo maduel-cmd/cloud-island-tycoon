@@ -1632,11 +1632,12 @@ export function buildAttractionMesh(
 }
 
 export function animateAttraction(obj: THREE.Object3D, dt: number, broken: boolean, time: number): void {
-  if (broken) return;
   if (obj.userData.hasLookImage) {
-    animateLookBillboard(obj, dt, time);
+    // Broken rides freeze on motion frame 1; working rides cycle the pack.
+    animateLookBillboard(obj, dt, time, broken);
     return;
   }
+  if (broken) return;
   const cycles = obj.userData.cycles as Cycle[] | undefined;
   if (!cycles) return;
   for (const c of cycles) {

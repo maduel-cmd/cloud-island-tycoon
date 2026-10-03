@@ -16,7 +16,7 @@ import {
   buildAttractionMesh,
   buildStallMesh,
 } from "./RideMeshes";
-import { tryApplyEntityLook, warmLook } from "./parkLooks";
+import { tryApplyEntityLook, warmLook, warmPathMotionFrames, warmMotionFrames } from "./parkLooks";
 import {
   animateBench,
   animateBin,
@@ -47,6 +47,8 @@ function ensureLook(
     1,
     Math.min(5, Math.floor(tier ?? (obj.userData.tier as number) ?? (obj.userData.propTier as number) ?? 1) || 1),
   );
+  // Keep warming motion frames even after the still is applied
+  warmMotionFrames(kind, id);
   if (obj.userData.hasLookImage && obj.userData.lookTier === t) return;
   tryApplyEntityLook(obj, kind, id, footprint, undefined, t);
 }
@@ -376,6 +378,10 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   let lastTileSig = "";
   let visitorTex: THREE.Texture | null = null;
   let pathLookTex: THREE.Texture | null = null;
+  let pathMotionTextures: THREE.Texture[] | null = null;
+  let pathMotionFrame = 0;
+  let pathMotionAcc = 0;
+  const PATH_MOTION_DT = 1 / 6;
   const texLoader = new THREE.TextureLoader();
   const visitorSheetSrc = GAME_STATIC_ASSETS.VISITOR_SHEET?.src;
   if (visitorSheetSrc) {
@@ -507,6 +513,22 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       pathLookTex.wrapS = THREE.RepeatWrapping;
       pathLookTex.wrapT = THREE.RepeatWrapping;
       lastTileSig = "";
+    }
+    // Path motion frames texture path tiles (not a standing lamp card).
+    if (!pathMotionTextures) {
+      const frames = warmPathMotionFrames();
+      if (frames) {
+        pathMotionTextures = frames.map((img) => {
+          const t = new THREE.Texture(img);
+          t.colorSpace = THREE.SRGBColorSpace;
+          t.needsUpdate = true;
+          t.wrapS = THREE.RepeatWrapping;
+          t.wrapT = THREE.RepeatWrapping;
+          return t;
+        });
+        pathLookTex = pathMotionTextures[0]!;
+        lastTileSig = "";
+      }
     }
     let sig = `${g.width}x${g.height}|`;
     for (let y = 0; y < g.height; y++) {
@@ -1050,9 +1072,27 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       obj.position.set(wpos.x, 0, wpos.z);
     }
 
-    // שער — רק שני הדגלים זזים
+    // שער — motion frames cycle flags; fallback procedural flag wave
     const gateObj = entityMeshes.get("gate_arch");
-    if (gateObj) animateGateFlags(gateObj, animTime);
+    if (gateObj) animateGateFlags(gateObj, animTime, dt);
+
+    // Path tile motion — cycle textured path tiles through the 4-frame pack
+    if (pathMotionTextures && pathMotionTextures.length >= 1) {
+      pathMotionAcc += dt;
+      while (pathMotionAcc >= PATH_MOTION_DT) {
+        pathMotionAcc -= PATH_MOTION_DT;
+        pathMotionFrame = (pathMotionFrame + 1) % pathMotionTextures.length;
+      }
+      const tex = pathMotionTextures[pathMotionFrame]!;
+      if (pathLookTex !== tex) {
+        pathLookTex = tex;
+        const pathMat = matCache.get("t_path_look");
+        if (pathMat) {
+          pathMat.map = tex;
+          pathMat.needsUpdate = true;
+        }
+      }
+    }
 
     // נורות שביל בשלב גבוה — הבהוב
     for (const [key, obj] of tileMeshes) {

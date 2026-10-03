@@ -7,14 +7,18 @@
 import * as THREE from "three";
 import { isAssetReady, type GameAsset } from "../config/assets";
 import { getLoadedStaticAsset, preloadStaticAsset } from "../assets/AssetLoader";
-import { LOOK_CATALOG, shouldSkipLook } from "./lookRegistry";
+import { LOOK_CATALOG, shouldSkipLook, shouldSkipMotion } from "./lookRegistry";
 
 export type LookKind = "attraction" | "stall" | "prop" | "staff";
 
 const EXT = ["png", "webp", "jpg", "jpeg"] as const;
+const MOTION_FRAME_COUNT = 4;
+/** Seconds per motion frame (~6 fps feels lively without thrashing). */
+const MOTION_FRAME_DT = 1 / 6;
 
 /** Track which look ids we already probed so missing files do not spam 404s. */
 const probed = new Set<string>();
+const motionProbed = new Set<string>();
 
 const TIER_ACCENT: Record<number, number> = {
   1: 0x94a3b8,
@@ -34,6 +38,13 @@ export function lookSrcCandidates(kind: LookKind, id: string): string[] {
   return EXT.map((ext) => `/assets/looks/${kind}/${safe}.${ext}`);
 }
 
+/** Motion-frame paths: /assets/looks/<kind>/<id>/0.png … 3.png */
+export function motionFrameSrc(kind: LookKind, id: string, frame: number): string {
+  const safe = id.replace(/[^a-z0-9_-]/gi, "_").toLowerCase();
+  const f = Math.max(0, Math.min(MOTION_FRAME_COUNT - 1, Math.floor(frame)));
+  return `/assets/looks/${kind}/${safe}/${f}.png`;
+}
+
 export function lookAsset(kind: LookKind, id: string, preferredSrc?: string): GameAsset {
   const src = preferredSrc?.trim() || lookSrcCandidates(kind, id)[0]!;
   return {
@@ -44,13 +55,55 @@ export function lookAsset(kind: LookKind, id: string, preferredSrc?: string): Ga
   };
 }
 
+export function motionFrameAsset(kind: LookKind, id: string, frame: number): GameAsset {
+  return {
+    id: `look_motion_${kind}_${id}_${frame}`,
+    name: `${kind} motion ${id} f${frame}`,
+    type: "sprite_image",
+    src: motionFrameSrc(kind, id, frame),
+  };
+}
+
 /** Preload every catalogued look (skips bad stills that were never copied). */
 export function warmAllLooks(): void {
   if (typeof Image === "undefined") return;
   for (const { kind, id } of LOOK_CATALOG) {
     if (shouldSkipLook(id)) continue;
     warmLook(kind, id);
+    warmMotionFrames(kind, id);
   }
+}
+
+/**
+ * Kick off loads for a 4-frame motion pack. Returns loaded images when all four are ready.
+ * Missing packs (404) resolve as empty — still body keeps working alone.
+ */
+export function warmMotionFrames(kind: LookKind, id: string): HTMLImageElement[] | null {
+  if (typeof Image === "undefined") return null;
+  if (shouldSkipLook(id) || shouldSkipMotion(id)) return null;
+
+  const key = `${kind}:${id}`;
+  const assets = Array.from({ length: MOTION_FRAME_COUNT }, (_, i) => motionFrameAsset(kind, id, i));
+  const loaded: HTMLImageElement[] = [];
+  let allReady = true;
+  for (const asset of assets) {
+    const hit = getLoadedStaticAsset(asset);
+    if (hit) {
+      loaded.push(hit);
+      continue;
+    }
+    allReady = false;
+    if (!motionProbed.has(`${key}:${asset.id}`)) {
+      motionProbed.add(`${key}:${asset.id}`);
+      if (isAssetReady(asset)) preloadStaticAsset(asset);
+    }
+  }
+  return allReady && loaded.length === MOTION_FRAME_COUNT ? loaded : null;
+}
+
+/** Path-tile motion pack (textures path tiles, not a standing prop). */
+export function warmPathMotionFrames(): HTMLImageElement[] | null {
+  return warmMotionFrames("prop", "path");
 }
 
 /**
@@ -216,7 +269,46 @@ export function applyLookBillboard(
   g.userData.lookTier = tier;
   g.userData.hasLookImage = true;
   g.userData.lookBaseY = billboardY;
+
+  // Attach motion-frame textures when the 4-pack is ready (still stays the body until then).
+  attachMotionTextures(g, kind, id, mat);
   return true;
+}
+
+function attachMotionTextures(
+  g: THREE.Group,
+  kind: LookKind,
+  id: string,
+  mat: THREE.MeshBasicMaterial,
+): void {
+  if (shouldSkipMotion(id)) {
+    g.userData.lookMotionTextures = null;
+    g.userData.lookMotionFrame = 0;
+    g.userData.lookMotionAcc = 0;
+    return;
+  }
+  const frames = warmMotionFrames(kind, id);
+  if (!frames) {
+    // Keep probing; animateLookBillboard retries once frames land.
+    g.userData.lookMotionTextures = null;
+    g.userData.lookMotionPending = true;
+    g.userData.lookMotionFrame = 0;
+    g.userData.lookMotionAcc = 0;
+    return;
+  }
+  const textures = frames.map((img) => {
+    const t = new THREE.Texture(img);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.needsUpdate = true;
+    return t;
+  });
+  g.userData.lookMotionTextures = textures;
+  g.userData.lookMotionPending = false;
+  g.userData.lookMotionFrame = 0;
+  g.userData.lookMotionAcc = 0;
+  // Start on frame 0 (also the broken freeze frame)
+  mat.map = textures[0]!;
+  mat.needsUpdate = true;
 }
 
 /** Soft-fail apply: call after building procedural mesh. */
@@ -243,13 +335,49 @@ export function tryApplyEntityLook(
 
 /**
  * Drive look-billboard motion from the entity's primary cycle type.
- * Called when hasLookImage so stills stay animated.
+ * Prefer 4-frame image packs when present; otherwise fall back to procedural billboard wobble.
+ * Broken rides freeze on frame 1 (index 0).
  */
-export function animateLookBillboard(obj: THREE.Object3D, dt: number, time: number): void {
+export function animateLookBillboard(obj: THREE.Object3D, dt: number, time: number, broken = false): void {
   if (!obj.userData.hasLookImage) return;
   const look = obj.getObjectByName("lookBillboard");
   if (!look) return;
+  const mat = (look as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined;
 
+  // Late-bind motion pack once images finish loading
+  if (obj.userData.lookMotionPending && mat) {
+    const kind = obj.userData.lookKind as LookKind | undefined;
+    const id = obj.userData.lookId as string | undefined;
+    if (kind && id) attachMotionTextures(obj as THREE.Group, kind, id, mat);
+  }
+
+  const textures = obj.userData.lookMotionTextures as THREE.Texture[] | null | undefined;
+  if (textures && textures.length >= 1 && mat) {
+    if (broken) {
+      if (obj.userData.lookMotionFrame !== 0) {
+        obj.userData.lookMotionFrame = 0;
+        mat.map = textures[0]!;
+        mat.needsUpdate = true;
+      }
+      return;
+    }
+    let acc = (obj.userData.lookMotionAcc as number) || 0;
+    acc += dt;
+    let frame = (obj.userData.lookMotionFrame as number) || 0;
+    while (acc >= MOTION_FRAME_DT) {
+      acc -= MOTION_FRAME_DT;
+      frame = (frame + 1) % textures.length;
+    }
+    obj.userData.lookMotionAcc = acc;
+    if (frame !== obj.userData.lookMotionFrame) {
+      obj.userData.lookMotionFrame = frame;
+      mat.map = textures[frame]!;
+      mat.needsUpdate = true;
+    }
+    return;
+  }
+
+  // No motion pack — keep the soft procedural billboard motion
   const cycles = obj.userData.cycles as Array<{ type: string; speed?: number; amp?: number; period?: number }> | undefined;
   const primary = cycles?.[0]?.type ?? "bob";
   const speed = cycles?.[0]?.speed ?? 1.2;
@@ -293,7 +421,6 @@ export function animateLookBillboard(obj: THREE.Object3D, dt: number, time: numb
     case "flash":
     case "blink": {
       const period = cycles?.[0]?.period ?? 0.8;
-      const mat = (look as THREE.Mesh).material as THREE.MeshBasicMaterial;
       if (mat) mat.opacity = 0.55 + 0.45 * (Math.sin(time / period) > 0 ? 1 : 0.35);
       break;
     }

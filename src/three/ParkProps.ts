@@ -615,9 +615,9 @@ export function setWarehouseDoorOpen(obj: THREE.Object3D, open: boolean, time: n
 }
 
 /** Gate flags only — body built in ThreeParkWorld; this animates named flags (or look billboard). */
-export function animateGateFlags(obj: THREE.Object3D, time: number): void {
+export function animateGateFlags(obj: THREE.Object3D, time: number, dt = 0.016): void {
   if (obj.userData.hasLookImage) {
-    animateLookBillboard(obj, 0.016, time);
+    animateLookBillboard(obj, dt, time, false);
     return;
   }
   const fl = obj.getObjectByName("gateFlagL");
