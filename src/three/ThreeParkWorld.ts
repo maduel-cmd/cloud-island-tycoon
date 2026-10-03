@@ -232,22 +232,28 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   meadow.receiveShadow = true;
   root.add(meadow);
 
-  // ים עננים סביב הצוק בלבד — מתחת לאי, טבעת חיצונית שלא חוצה את האחו
-  const seaCloudMat = new THREE.MeshStandardMaterial({
-    color: 0xf4f7fb,
+  // ים ענני נוצה סביב הצוק — שכבות דקיקות גבוהות, לא טבעת אטומה על האחו
+  const cirrusSeaMat = new THREE.MeshStandardMaterial({
+    color: 0xf7fafc,
     roughness: 1,
     transparent: true,
-    opacity: 0.9,
-    flatShading: true,
+    opacity: 0.28,
+    depthWrite: false,
     side: THREE.DoubleSide,
   });
-  const cloudSea = new THREE.Mesh(
-    new THREE.RingGeometry(16.5, 28, 48),
-    seaCloudMat,
-  );
-  cloudSea.rotation.x = -Math.PI / 2;
-  cloudSea.position.y = -2.55;
-  root.add(cloudSea);
+  for (let i = 0; i < 10; i++) {
+    const wisp = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 8, 6),
+      cirrusSeaMat,
+    );
+    const ang = (i / 10) * Math.PI * 2;
+    const dist = 18 + (i % 3) * 2.2;
+    wisp.position.set(Math.cos(ang) * dist, -1.4 + (i % 4) * 0.35, Math.sin(ang) * dist);
+    wisp.scale.set(4.5 + (i % 3), 0.18 + (i % 2) * 0.08, 1.2 + (i % 3) * 0.35);
+    wisp.rotation.y = ang + 0.4;
+    wisp.rotation.z = (i % 5) * 0.04 - 0.1;
+    root.add(wisp);
+  }
 
   // שפת אחו מורמת / גבעות קטנות
   for (let i = 0; i < 8; i++) {
@@ -330,18 +336,22 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     root.add(m);
   }
 
-  // עננים רכים רחוקים — מחוץ לאי בלבד, לא מעל משבצות בנייה
-  const cloudMat = new THREE.MeshStandardMaterial({
-    color: 0xf2f0ea,
+  // ענני נוצה רחוקים — דקים וגבוהים, מחוץ לאי בלבד
+  const cirrusFarMat = new THREE.MeshStandardMaterial({
+    color: 0xf8fafc,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.32,
     roughness: 1,
+    depthWrite: false,
+    side: THREE.DoubleSide,
   });
-  for (let i = 0; i < 6; i++) {
-    const c = new THREE.Mesh(new THREE.SphereGeometry(2.2 + (i % 3) * 0.6, 10, 10), cloudMat);
-    const ang = (i / 6) * Math.PI * 2;
-    c.position.set(Math.cos(ang) * 30, 7 + (i % 3), Math.sin(ang) * 30);
-    c.scale.set(2.2, 0.55, 1.4);
+  for (let i = 0; i < 8; i++) {
+    const c = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6), cirrusFarMat);
+    const ang = (i / 8) * Math.PI * 2;
+    c.position.set(Math.cos(ang) * 32, 9 + (i % 3) * 1.2, Math.sin(ang) * 32);
+    c.scale.set(5.5 + (i % 3) * 0.8, 0.22, 1.4 + (i % 2) * 0.4);
+    c.rotation.y = ang * 0.7;
+    c.rotation.z = ((i % 4) - 1.5) * 0.06;
     root.add(c);
   }
 
@@ -474,67 +484,105 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         prepTileTex(t);
         cloudEdgeMap = t;
         lastTileSig = "";
-        // Refresh mist materials with the painted cloud texture
-        for (const child of parkMistGroup.children) {
-          const m = (child as THREE.Mesh).material;
-          if (m instanceof THREE.MeshStandardMaterial && !m.map) {
-            m.map = t;
-            m.color.set(0xffffff);
-            m.needsUpdate = true;
-          }
-        }
       });
     }
   }
 
   let mistSeeded = false;
+  let mistLandSig = "";
   let mistIdSeq = 0;
 
-  const mistMat = () => {
-    const map = cloudEdgeMap;
-    return new THREE.MeshStandardMaterial({
-      color: map ? 0xffffff : 0xf2f6fb,
-      map: map ?? undefined,
+  /** Soft cirrus / feather material — no chunky tile texture */
+  const cirrusMat = (opacity = 0.34) =>
+    new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
       transparent: true,
-      opacity: 0.78,
+      opacity,
       roughness: 1,
       metalness: 0,
       depthWrite: false,
-      flatShading: !map,
+      side: THREE.DoubleSide,
     });
+
+  const makeCirrusFeather = (scale = 1): THREE.Group => {
+    const g = new THREE.Group();
+    // Thin elongated wisps stacked slightly — reads as ענני נוצה
+    for (let k = 0; k < 3; k++) {
+      const wisp = new THREE.Mesh(geoCache.cloudPuff, cirrusMat(0.28 + k * 0.05));
+      wisp.scale.set(
+        (2.8 + k * 0.6) * scale,
+        (0.12 + k * 0.04) * scale,
+        (0.55 + k * 0.15) * scale,
+      );
+      wisp.position.set((k - 1) * 0.35 * scale, k * 0.08, (k - 1) * 0.12);
+      wisp.rotation.z = (k - 1) * 0.08;
+      wisp.rotation.y = k * 0.2;
+      g.add(wisp);
+    }
+    return g;
   };
 
-  /** Soft park-covering mist — separate from cliff-edge tiles */
+  const isOwnedParkTile = (kind: string) =>
+    kind === "grass" || kind === "path" || kind === "parking" || kind === "road";
+
+  /**
+   * Feather mist only over unowned land (cloud/locked).
+   * Never covers rides or owned/purchased park tiles.
+   */
   const seedParkMist = (sim: Simulation) => {
-    if (mistSeeded) return;
-    mistSeeded = true;
     const g = sim.grid;
+    const landSig = g.plots.filter((p) => p.unlocked).map((p) => p.id).sort().join(",");
+    if (mistSeeded && landSig === mistLandSig) {
+      // Cull any mist that ended up over owned land (unlock / scatter settle)
+      const doomed: THREE.Object3D[] = [];
+      for (const child of parkMistGroup.children) {
+        if (child.userData.scattering) continue;
+        const gp = worldToGrid(child.position.x, child.position.z);
+        if (isOwnedParkTile(g.get(gp.x, gp.y))) doomed.push(child);
+      }
+      for (const c of doomed) {
+        parkMistGroup.remove(c);
+        c.traverse((o) => {
+          const m = (o as THREE.Mesh).material;
+          if (m instanceof THREE.Material) m.dispose();
+        });
+      }
+      return;
+    }
+    mistSeeded = true;
+    mistLandSig = landSig;
+
+    while (parkMistGroup.children.length > 0) {
+      const c = parkMistGroup.children[0]!;
+      parkMistGroup.remove(c);
+      c.traverse((o) => {
+        const m = (o as THREE.Mesh).material;
+        if (m instanceof THREE.Material) m.dispose();
+      });
+    }
+
     const candidates: { wx: number; wz: number }[] = [];
-    for (let y = 2; y < g.height - 2; y += 2) {
-      for (let x = 2; x < g.width - 2; x += 2) {
+    for (let y = 1; y < g.height - 1; y += 2) {
+      for (let x = 1; x < g.width - 1; x += 2) {
         const kind = g.get(x, y);
-        if (kind === "void") continue;
-        // Prefer undeveloped / open meadow so mist reads as "clouds over park"
-        if (kind === "grass" || kind === "cloud" || kind === "locked") {
-          const p = gridToWorld(x, y, 0);
-          candidates.push({ wx: p.x, wz: p.z });
-        }
+        // Unowned fog only — never grass/path/parking/road (owned / purchased)
+        if (kind !== "cloud" && kind !== "locked") continue;
+        const p = gridToWorld(x, y, 0);
+        candidates.push({ wx: p.x, wz: p.z });
       }
     }
-    // Spread enough patches that some areas are covered and others clear
-    const count = Math.min(28, candidates.length);
+    const count = Math.min(18, candidates.length);
     for (let i = 0; i < count; i++) {
       const c = candidates[(i * 7) % candidates.length]!;
       const id = `mist_${mistIdSeq++}`;
-      const puff = new THREE.Mesh(geoCache.cloudPuff, mistMat());
-      const s = 2.4 + (i % 4) * 0.45;
-      puff.scale.set(s * 1.6, s * 0.55, s * 1.3);
-      puff.position.set(
-        c.wx + ((i * 13) % 5) * 0.15 - 0.3,
-        1.15 + (i % 3) * 0.35,
-        c.wz + ((i * 17) % 5) * 0.15 - 0.3,
+      const feather = makeCirrusFeather(0.85 + (i % 4) * 0.12);
+      feather.position.set(
+        c.wx + ((i * 13) % 5) * 0.12 - 0.24,
+        3.6 + (i % 4) * 0.55,
+        c.wz + ((i * 17) % 5) * 0.12 - 0.24,
       );
-      puff.userData = {
+      feather.rotation.y = (i * 0.7) % (Math.PI * 2);
+      feather.userData = {
         scatterable: true,
         mistId: id,
         scattering: false,
@@ -542,9 +590,9 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         vy: 0,
         vz: 0,
         life: 0,
-        baseOpacity: 0.78,
+        baseOpacity: 0.34,
       };
-      parkMistGroup.add(puff);
+      parkMistGroup.add(feather);
     }
   };
 
@@ -560,20 +608,24 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       ud.vz *= 0.94;
       ud.vy = (ud.vy as number) * 0.97 + 1.8 * dt;
       ud.life = (ud.life as number) - dt;
-      const mat = (child as THREE.Mesh).material;
-      if (mat instanceof THREE.MeshStandardMaterial) {
-        const t = Math.max(0, Math.min(1, (ud.life as number) / 1.1));
-        mat.opacity = (ud.baseOpacity as number) * t;
-        child.scale.multiplyScalar(1 + dt * 0.55);
-      }
-      if ((ud.life as number) <= 0 || child.position.y > 14) {
+      const t = Math.max(0, Math.min(1, (ud.life as number) / 1.1));
+      child.traverse((o) => {
+        const mat = (o as THREE.Mesh).material;
+        if (mat instanceof THREE.MeshStandardMaterial) {
+          mat.opacity = (ud.baseOpacity as number) * t;
+        }
+      });
+      child.scale.multiplyScalar(1 + dt * 0.35);
+      if ((ud.life as number) <= 0 || child.position.y > 18) {
         doomed.push(child);
       }
     }
     for (const c of doomed) {
       parkMistGroup.remove(c);
-      const mat = (c as THREE.Mesh).material;
-      if (mat instanceof THREE.Material) mat.dispose();
+      c.traverse((o) => {
+        const mat = (o as THREE.Mesh).material;
+        if (mat instanceof THREE.Material) mat.dispose();
+      });
     }
   };
 
@@ -711,8 +763,8 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     }
 
     /**
-     * Cliff-edge clouds only — never on grass/path/parking/road (buildable).
-     * Cloud-edge PNG tiles sit on void rim cells, pushed outward below the meadow.
+     * Cliff-edge feather clouds only — never on grass/path/parking/road (owned).
+     * Soft cirrus wisps past the cliff face, not solid textured tiles on the meadow.
      */
     const cliffRim: { wx: number; wz: number }[] = [];
 
@@ -746,26 +798,35 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     if (cliffRim.length > 0) {
       const midX = mapBounds.centerX;
       const midZ = mapBounds.centerZ;
-      const edgeMat = groundMat("cloudEdge", 0xb8d4ef);
+      // Subsample rim so feathers stay airy, not a solid wall
       cliffRim.forEach((c, i) => {
+        if (i % 2 !== 0) return;
         const dx = c.wx - midX;
         const dz = c.wz - midZ;
         const len = Math.hypot(dx, dz) || 1;
         const nx = dx / len;
         const nz = dz / len;
-        // Past the cliff face — never overlapping buildable plateau tiles
-        const mesh = new THREE.Mesh(geoCache.cloudTile, edgeMat);
-        mesh.position.set(c.wx + nx * 1.55, -1.15, c.wz + nz * 1.55);
-        mesh.receiveShadow = false;
-        mesh.castShadow = false;
-        mesh.userData = { cliffEdge: true, i };
-        fogCloudsGroup.add(mesh);
+        const feather = makeCirrusFeather(1.05 + (i % 3) * 0.12);
+        feather.position.set(
+          c.wx + nx * 1.85,
+          2.4 + (i % 4) * 0.45,
+          c.wz + nz * 1.85,
+        );
+        feather.rotation.y = Math.atan2(nx, nz) + Math.PI / 2;
+        feather.userData = { cliffEdge: true, i, scatterable: false };
+        fogCloudsGroup.add(feather);
 
-        const mesh2 = new THREE.Mesh(geoCache.cloudTile, edgeMat);
-        mesh2.position.set(c.wx + nx * 2.4, -1.75, c.wz + nz * 2.4);
-        mesh2.scale.setScalar(1.15);
-        mesh2.userData = { cliffEdge: true, i: i + 1000 };
-        fogCloudsGroup.add(mesh2);
+        if (i % 4 === 0) {
+          const feather2 = makeCirrusFeather(0.9);
+          feather2.position.set(
+            c.wx + nx * 2.6,
+            1.6 + (i % 3) * 0.35,
+            c.wz + nz * 2.6,
+          );
+          feather2.rotation.y = Math.atan2(nx, nz);
+          feather2.userData = { cliffEdge: true, i: i + 1000, scatterable: false };
+          fogCloudsGroup.add(feather2);
+        }
       });
     }
 

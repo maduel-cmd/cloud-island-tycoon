@@ -10,6 +10,11 @@ export type ThumbShape =
   | "water"
   | "stall"
   | "path"
+  | "bin"
+  | "bench"
+  | "parking"
+  | "warehouse"
+  | "hire"
   | "util"
   | "generic";
 
@@ -134,18 +139,81 @@ export function IsoThumb({
         {shape === "path" && (
           <>
             {/* Iso road tiles — reads as path to lay, not a service building */}
-            <polygon points="50,28 72,40 50,52 28,40" fill={color} stroke={accent} strokeWidth="1.5" />
-            <polygon points="50,40 72,52 50,64 28,52" fill={accent} opacity="0.85" stroke={color} strokeWidth="1" />
-            <polygon points="50,52 72,64 50,76 28,64" fill={color} stroke={accent} strokeWidth="1.5" />
-            <line x1="42" y1="44" x2="58" y2="54" stroke="#fff" strokeWidth="1.2" opacity="0.55" />
-            <line x1="42" y1="56" x2="58" y2="66" stroke="#fff" strokeWidth="1.2" opacity="0.55" />
+            <polygon points="50,28 72,40 50,52 28,40" fill="#c5ced8" stroke="#94a3b8" strokeWidth="1.5" />
+            <polygon points="50,40 72,52 50,64 28,52" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
+            <polygon points="50,52 72,64 50,76 28,64" fill="#cbd5e1" stroke="#94a3b8" strokeWidth="1.5" />
+            <line x1="42" y1="44" x2="58" y2="54" stroke="#fff" strokeWidth="1.4" opacity="0.7" />
+            <line x1="42" y1="56" x2="58" y2="66" stroke="#fff" strokeWidth="1.4" opacity="0.7" />
+          </>
+        )}
+        {shape === "bin" && (
+          <>
+            {/* Trash can */}
+            <ellipse cx="50" cy="68" rx="16" ry="5" fill="#0f766e" opacity="0.35" />
+            <path d="M34 38 L38 66 Q50 72 62 66 L66 38 Z" fill={color} stroke="#0f766e" strokeWidth="1.5" />
+            <rect x="32" y="34" width="36" height="8" rx="2" fill={accent} />
+            <rect x="44" y="28" width="12" height="8" rx="2" fill="#5eead4" />
+            <line x1="42" y1="46" x2="42" y2="60" stroke="#fff" strokeWidth="2" opacity="0.45" />
+            <line x1="50" y1="46" x2="50" y2="62" stroke="#fff" strokeWidth="2" opacity="0.45" />
+            <line x1="58" y1="46" x2="58" y2="60" stroke="#fff" strokeWidth="2" opacity="0.45" />
+          </>
+        )}
+        {shape === "bench" && (
+          <>
+            {/* Park bench */}
+            <ellipse cx="50" cy="70" rx="22" ry="5" fill="#78350f" opacity="0.25" />
+            <rect x="22" y="48" width="56" height="8" rx="2" fill={color} />
+            <rect x="26" y="40" width="48" height="6" rx="2" fill={accent} />
+            <rect x="28" y="56" width="5" height="14" rx="1" fill="#78350f" />
+            <rect x="67" y="56" width="5" height="14" rx="1" fill="#78350f" />
+            <rect x="24" y="34" width="6" height="16" rx="1" fill="#a16207" />
+            <rect x="70" y="34" width="6" height="16" rx="1" fill="#a16207" />
+          </>
+        )}
+        {shape === "parking" && (
+          <>
+            {/* Parking bay with P mark */}
+            <polygon points="50,26 78,42 50,58 22,42" fill="#64748b" stroke="#334155" strokeWidth="1.5" />
+            <polygon points="50,34 70,46 50,58 30,46" fill="#94a3b8" opacity="0.85" />
+            <rect x="42" y="38" width="16" height="18" rx="2" fill="#1e293b" />
+            <text
+              x="50"
+              y="52"
+              textAnchor="middle"
+              fontSize="14"
+              fontWeight="700"
+              fill="#f8fafc"
+              fontFamily="system-ui,sans-serif"
+            >
+              P
+            </text>
+          </>
+        )}
+        {shape === "warehouse" && (
+          <>
+            {/* Logistics warehouse */}
+            <ellipse cx="50" cy="72" rx="26" ry="5" fill="#475569" opacity="0.3" />
+            <path d="M20 52 L50 28 L80 52 L80 68 L20 68 Z" fill={color} stroke="#475569" strokeWidth="1.5" />
+            <path d="M20 52 L50 28 L80 52 Z" fill={accent} opacity="0.9" />
+            <rect x="40" y="54" width="20" height="14" rx="1" fill="#1e293b" />
+            <rect x="26" y="56" width="10" height="8" rx="1" fill="#94a3b8" opacity="0.7" />
+            <rect x="64" y="56" width="10" height="8" rx="1" fill="#94a3b8" opacity="0.7" />
+          </>
+        )}
+        {shape === "hire" && (
+          <>
+            {/* Staff hire — person silhouette */}
+            <ellipse cx="50" cy="72" rx="18" ry="5" fill={color} opacity="0.25" />
+            <circle cx="50" cy="34" r="10" fill={accent} stroke={color} strokeWidth="1.5" />
+            <path d="M32 68 Q32 48 50 46 Q68 48 68 68 Z" fill={color} />
+            <rect x="44" y="52" width="12" height="6" rx="1" fill="#fff" opacity="0.55" />
           </>
         )}
         {shape === "util" && (
           <>
             <rect x="30" y="40" width="40" height="28" rx="4" fill={color} />
-            <circle cx="42" cy="54" r="6" fill="#fff" />
-            <circle cx="58" cy="54" r="6" fill="#fff" />
+            <rect x="36" y="46" width="12" height="16" rx="1" fill="#fff" opacity="0.55" />
+            <rect x="52" y="46" width="12" height="16" rx="1" fill="#fff" opacity="0.55" />
           </>
         )}
         {shape === "generic" && (
