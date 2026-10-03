@@ -25,5 +25,5 @@ Ids match the game catalog (`sky_coaster`, `balloon_vendor`, `inverted_coaster`,
 Gate still: two openings + beam + two flags (`prop/gate.png`); motion pack waves the flags.
 Inverted coaster still: car hangs under the track (`attraction/inverted_coaster.png`);
 no motion pack (sheet had only one matching hang frame).
-Mini railway: no motion pack (sheet was one continuous scene sliced into quadrants).
+Mini railway: motion pack from replacement 2x2 sheet (`attraction/mini_railway/{0..3}.png`).
 Broken rides freeze on frame `0.png`.

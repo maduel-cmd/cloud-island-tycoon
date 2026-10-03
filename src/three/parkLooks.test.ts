@@ -39,13 +39,16 @@ describe("parkLooks image wiring", () => {
     assert.ok(LOOK_CATALOG.some((e) => e.kind === "stall" && e.id === "balloon_vendor"));
   });
 
-  it("skips motion packs for inverted coaster and mini railway only", () => {
+  it("skips motion packs for inverted coaster only; mini railway is wired", () => {
     assert.equal(shouldSkipMotion("inverted_coaster"), true);
-    assert.equal(shouldSkipMotion("mini_railway"), true);
+    assert.equal(shouldSkipMotion("mini_railway"), false);
     assert.equal(shouldSkipMotion("gate"), false);
     assert.equal(shouldSkipMotion("sky_coaster"), false);
     assert.ok(MOTION_SKIP_IDS.has("inverted_coaster"));
-    assert.ok(MOTION_SKIP_IDS.has("mini_railway"));
+    assert.equal(MOTION_SKIP_IDS.has("mini_railway"), false);
+    for (let f = 0; f < 4; f++) {
+      assert.ok(existsSync(`public/assets/looks/attraction/mini_railway/${f}.png`));
+    }
   });
 
   it("ships four motion frames for wired looks and none for skipped", () => {
