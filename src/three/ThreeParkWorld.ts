@@ -12,9 +12,27 @@ import { VISITOR_SHEET } from "../assets/sprites/VisitorSheet";
 import { GAME_STATIC_ASSETS } from "../config/assets";
 import {
   animateAttraction,
+  animateStall,
   buildAttractionMesh,
   buildStallMesh,
 } from "./RideMeshes";
+import {
+  animateBench,
+  animateBin,
+  animateDecor,
+  animateGateFlags,
+  animatePathLamp,
+  animateStaff,
+  buildBenchMesh,
+  buildBinMesh,
+  buildCarMesh,
+  buildDecorMesh,
+  buildStaffMesh,
+  buildTrashMesh,
+  buildWarehouseMesh,
+  setTrashAmount,
+  setWarehouseDoorOpen,
+} from "./ParkProps";
 
 export const THREE_ZOOM_MIN = 0.35;
 export const THREE_ZOOM_MAX = 3.5;
@@ -45,10 +63,10 @@ export type ThreeParkHandle = {
 };
 
 const TILE_COLORS: Record<string, number> = {
-  grass: 0x3f6e2c,
-  path: 0x8b7355,
-  parking: 0x4a5560,
-  road: 0x3f4650,
+  grass: 0x5f9e3a,
+  path: 0xb0a090,
+  parking: 0x6b7280,
+  road: 0x57534e,
   cloud: 0xb8c9d4,
   locked: 0x6b7280,
   void: 0x6a9bc2,
@@ -64,9 +82,9 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   const w = Math.max(1, container.clientWidth || 640);
   const h = Math.max(1, container.clientHeight || 480);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#6a9bc2");
+  scene.background = new THREE.Color("#87b8dc");
   // ערפל קל בלבד — חייב לראות דשא ואזורי בנייה, לא מסך עננים
-  scene.fog = new THREE.FogExp2("#8eb4c8", 0.008);
+  scene.fog = new THREE.FogExp2("#c5dceb", 0.006);
 
   /** זום = קרבה; רדיוס orbit בסיסי / zoom */
   const BASE_RADIUS = 22;
@@ -132,10 +150,10 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   renderer.domElement.style.touchAction = "none";
   container.appendChild(renderer.domElement);
 
-  // תאורת starting-zone: שמש חמה + מילוי קריר (סגנון RPG חיצוני)
-  const hemi = new THREE.HemisphereLight(0xb8d4ef, 0x3d5a28, 0.55);
+  // תאורת איזומטרית בהירה — קונספט רפרנס, לא מראה כהה
+  const hemi = new THREE.HemisphereLight(0xe8f4ff, 0x8fbc6a, 0.75);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffe2b0, 1.35);
+  const sun = new THREE.DirectionalLight(0xfff4dd, 1.55);
   sun.position.set(28, 42, 18);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -147,8 +165,8 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   sun.shadow.camera.bottom = -40;
   sun.shadow.bias = -0.0002;
   scene.add(sun);
-  scene.add(new THREE.AmbientLight(0xfff5e6, 0.28));
-  const rim = new THREE.DirectionalLight(0x88aacc, 0.35);
+  scene.add(new THREE.AmbientLight(0xfffaf0, 0.42));
+  const rim = new THREE.DirectionalLight(0xb8d4ef, 0.4);
   rim.position.set(-20, 12, -15);
   scene.add(rim);
 
@@ -179,7 +197,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     flatShading: true,
   });
   const meadowMat = new THREE.MeshStandardMaterial({
-    color: 0x3f6e2c,
+    color: 0x5f9e3a,
     roughness: 0.95,
     flatShading: true,
   });
@@ -335,7 +353,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     root.add(c);
   }
 
-  const tileMeshes = new Map<string, THREE.Mesh>();
+  const tileMeshes = new Map<string, THREE.Object3D>();
   const entityMeshes = new Map<string, THREE.Object3D>();
   let hoverMesh: THREE.Mesh | null = null;
   let lastTileSig = "";
@@ -400,46 +418,46 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   let animTime = 0;
   let lastZoneTier = -1;
 
-  /** התפתחות כמו zones: שמים/ערפל/אחו משתנים עם רמת הפארק */
+  /** Bright isometric zone look — stays readable, not dark fantasy */
   const applyZoneLook = (parkLevel: number) => {
     const tier = parkLevel <= 1 ? 0 : parkLevel <= 3 ? 1 : 2;
     if (tier === lastZoneTier) return;
     lastZoneTier = tier;
     if (tier === 0) {
-      TILE_COLORS.grass = 0x3f6e2c;
-      meadowMat.color.set(0x3f6e2c);
-      scene.background = new THREE.Color("#6a9bc2");
+      TILE_COLORS.grass = 0x5f9e3a;
+      meadowMat.color.set(0x5f9e3a);
+      scene.background = new THREE.Color("#87b8dc");
       if (scene.fog instanceof THREE.FogExp2) {
-        scene.fog.color.set("#8eb4c8");
-        scene.fog.density = 0.008;
-      }
-      farMat.color.set(0x6a8499);
-      hemi.color.set(0xb8d4ef);
-      sun.color.set(0xffe2b0);
-      sun.intensity = 1.35;
-    } else if (tier === 1) {
-      TILE_COLORS.grass = 0x2f6b3a;
-      meadowMat.color.set(0x2f6b3a);
-      scene.background = new THREE.Color("#5a8eb8");
-      if (scene.fog instanceof THREE.FogExp2) {
-        scene.fog.color.set("#7aa3b8");
-        scene.fog.density = 0.007;
-      }
-      farMat.color.set(0x5a7088);
-      hemi.color.set(0xc8d8ef);
-      sun.intensity = 1.45;
-    } else {
-      TILE_COLORS.grass = 0x2a5c48;
-      meadowMat.color.set(0x2a5c48);
-      scene.background = new THREE.Color("#4a6a9a");
-      if (scene.fog instanceof THREE.FogExp2) {
-        scene.fog.color.set("#6a88a8");
+        scene.fog.color.set("#c5dceb");
         scene.fog.density = 0.006;
       }
-      farMat.color.set(0x4a5a78);
-      hemi.color.set(0xd0d8f0);
-      sun.color.set(0xfff0c8);
+      farMat.color.set(0x8aa8ba);
+      hemi.color.set(0xe8f4ff);
+      sun.color.set(0xfff4dd);
       sun.intensity = 1.55;
+    } else if (tier === 1) {
+      TILE_COLORS.grass = 0x58b03a;
+      meadowMat.color.set(0x58b03a);
+      scene.background = new THREE.Color("#7aafd4");
+      if (scene.fog instanceof THREE.FogExp2) {
+        scene.fog.color.set("#b8d4e8");
+        scene.fog.density = 0.0055;
+      }
+      farMat.color.set(0x7a9aab);
+      hemi.color.set(0xeef6ff);
+      sun.intensity = 1.6;
+    } else {
+      TILE_COLORS.grass = 0x4aa84a;
+      meadowMat.color.set(0x4aa84a);
+      scene.background = new THREE.Color("#6a9ec8");
+      if (scene.fog instanceof THREE.FogExp2) {
+        scene.fog.color.set("#a8c8dc");
+        scene.fog.density = 0.005;
+      }
+      farMat.color.set(0x6a8a9a);
+      hemi.color.set(0xf0f7ff);
+      sun.color.set(0xfff8e8);
+      sun.intensity = 1.65;
     }
     lastTileSig = ""; // force tile rebuild with new grass
   };
@@ -468,11 +486,13 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         sig += g.get(x, y)[0];
       }
     }
-    sig += `|p${g.plots.filter((p) => p.unlocked).length}|w${sim.state.warehouseBuilt ? 1 : 0}`;
+    sig += `|p${g.plots.filter((p) => p.unlocked).length}|w${sim.state.warehouseBuilt ? 1 : 0}|L${sim.state.parkLevel}`;
     if (sig === lastTileSig) return;
     lastTileSig = sig;
 
     mapBounds = gridWorldBounds(g.width, g.height);
+    const propTier = sim.state.parkLevel >= 4 ? 5 : sim.state.parkLevel >= 2 ? 3 : 1;
+    const pathHigh = propTier >= 4;
 
     // הסר ישנים (גיאומטריה משותפת — לא dispose)
     for (const m of tileMeshes.values()) {
@@ -500,6 +520,41 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         mesh.userData = { gx: x, gy: y, kind };
         tilesGroup.add(mesh);
         tileMeshes.set(`${x},${y}`, mesh);
+        // שביל אבן עם שפה — high stage: double edge + small lamp
+        if (kind === "path") {
+          const edge = new THREE.Mesh(
+            new THREE.BoxGeometry(ISO_TILE * (pathHigh ? 1.06 : 1.02), 0.04, ISO_TILE * (pathHigh ? 1.06 : 1.02)),
+            mat("path_edge", 0x8a8070, { roughness: 0.95 }),
+          );
+          edge.position.set(p.x, 0.08, p.z);
+          edge.receiveShadow = true;
+          tilesGroup.add(edge);
+          tileMeshes.set(`edge_${x},${y}`, edge);
+          if (pathHigh) {
+            const edge2 = new THREE.Mesh(
+              new THREE.BoxGeometry(ISO_TILE * 0.92, 0.03, ISO_TILE * 0.92),
+              mat("path_edge2", 0xa89f90, { roughness: 0.95 }),
+            );
+            edge2.position.set(p.x, 0.1, p.z);
+            tilesGroup.add(edge2);
+            tileMeshes.set(`edge2_${x},${y}`, edge2);
+            if ((x + y) % 5 === 0) {
+              const lamp = new THREE.Group();
+              const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.55, 5), mat("path_pole", 0x57534e));
+              pole.position.y = 0.4;
+              const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.07, 8, 8),
+                mat("path_bulb", 0xfef08a, { emissive: 0xfef08a, emissiveIntensity: 0.7 }),
+              );
+              bulb.position.y = 0.7;
+              bulb.name = "pathLamp";
+              lamp.add(pole, bulb);
+              lamp.position.set(p.x + 0.35, 0, p.z + 0.35);
+              tilesGroup.add(lamp);
+              tileMeshes.set(`lamp_${x},${y}`, lamp);
+            }
+          }
+        }
       }
     }
 
@@ -555,52 +610,69 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       fogCloudsGroup.add(grassInst, mistInst, puffInst);
     }
 
-    // שער פנטזיה — אבן + זהב (starting-zone portal), לא פלסטיק כחול
+    // שער אבן — high stage: thicker arch + two openings; only flags animate
     const gate = g.gatePos;
     const gp = gridToWorld(gate.x, gate.y, 0);
     const gateKey = "gate_arch";
+    const gateHigh = propTier >= 4;
     let gateObj = entityMeshes.get(gateKey) as THREE.Group | undefined;
+    if (gateObj && gateObj.userData.gateHigh !== gateHigh) {
+      entitiesGroup.remove(gateObj);
+      entityMeshes.delete(gateKey);
+      gateObj = undefined;
+    }
     if (!gateObj) {
       gateObj = new THREE.Group();
+      gateObj.userData.gateHigh = gateHigh;
       const stone = mat("gate_stone", 0x6a6358, { roughness: 0.95, metalness: 0.05 });
       const gold = mat("gate_gold", 0xc9a227, { roughness: 0.35, metalness: 0.65, emissive: 0x3a2a08, emissiveIntensity: 0.15 });
       const wood = mat("gate_wood", 0x4a3420, { roughness: 0.9 });
       const banner = mat("gate_banner", 0x6b1e1e, { roughness: 0.85 });
 
-      const baseL = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.35, 0.55), stone);
+      const span = gateHigh ? 1.05 : 0.7;
+      const thick = gateHigh ? 0.5 : 0.38;
+      const baseL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.35, 0.6), stone);
       const baseR = baseL.clone();
-      baseL.position.set(-0.7, 0.18, 0);
-      baseR.position.set(0.7, 0.18, 0);
+      baseL.position.set(-span, 0.18, 0);
+      baseR.position.set(span, 0.18, 0);
 
-      const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.38, 2.1, 0.38), stone);
+      const p1 = new THREE.Mesh(new THREE.BoxGeometry(thick, 2.2, thick), stone);
       const p2 = p1.clone();
-      p1.position.set(-0.7, 1.2, 0);
-      p2.position.set(0.7, 1.2, 0);
+      p1.position.set(-span, 1.25, 0);
+      p2.position.set(span, 1.25, 0);
 
-      const capL = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.45, 4), gold);
+      const capL = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.45, 4), gold);
       const capR = capL.clone();
-      capL.position.set(-0.7, 2.45, 0);
-      capR.position.set(0.7, 2.45, 0);
+      capL.position.set(-span, 2.55, 0);
+      capR.position.set(span, 2.55, 0);
       capL.rotation.y = Math.PI / 4;
       capR.rotation.y = Math.PI / 4;
 
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.32, 0.4), wood);
-      beam.position.set(0, 2.05, 0);
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.42), gold);
-      trim.position.set(0, 2.22, 0);
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(span * 2 + 0.4, gateHigh ? 0.45 : 0.32, 0.45), wood);
+      beam.position.set(0, 2.15, 0);
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(span * 2 + 0.5, 0.08, 0.48), gold);
+      trim.position.set(0, 2.38, 0);
 
       const crest = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.55, 0.12), gold);
-      crest.position.set(0, 2.55, 0.08);
+      crest.position.set(0, 2.65, 0.08);
 
       const banL = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.85), banner);
       const banR = banL.clone();
-      banL.position.set(-1.05, 1.5, 0.05);
-      banR.position.set(1.05, 1.5, 0.05);
+      banL.position.set(-span - 0.35, 1.5, 0.05);
+      banR.position.set(span + 0.35, 1.5, 0.05);
+      banL.name = "gateFlagL";
+      banR.name = "gateFlagR";
 
-      const step = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.7), stone);
+      const step = new THREE.Mesh(new THREE.BoxGeometry(span * 2, 0.12, 0.7), stone);
       step.position.set(0, 0.06, 0.35);
 
       gateObj.add(baseL, baseR, p1, p2, capL, capR, beam, trim, crest, banL, banR, step);
+      if (gateHigh) {
+        // second opening — middle pillar
+        const mid = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.0, 0.35), stone);
+        mid.position.set(0, 1.15, 0);
+        gateObj.add(mid);
+      }
       gateObj.traverse((c) => {
         if ((c as THREE.Mesh).isMesh) {
           c.castShadow = true;
@@ -613,18 +685,22 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     gateObj.position.set(gp.x, 0.15, gp.z);
     gateObj.scale.setScalar(1.45);
 
-    // מחסן
+    // מחסן — sliding door + shelf; high stage second wing
     const whKey = "warehouse";
     if (sim.state.warehouseBuilt) {
-      let wh = entityMeshes.get(whKey) as THREE.Mesh | undefined;
-      if (!wh) {
-        wh = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.1, 1.4), mat("wh", 0x78716c));
-        wh.castShadow = true;
+      let wh = entityMeshes.get(whKey) as THREE.Group | undefined;
+      if (!wh || wh.userData.propTier !== propTier) {
+        if (wh) {
+          entitiesGroup.remove(wh);
+          entityMeshes.delete(whKey);
+        }
+        wh = buildWarehouseMesh(mat, propTier);
+        wh.userData.propTier = propTier;
         entitiesGroup.add(wh);
         entityMeshes.set(whKey, wh);
       }
       const wp = gridToWorld(g.warehousePos.x, g.warehousePos.y, 0);
-      wh.position.set(wp.x, 0.7, wp.z);
+      wh.position.set(wp.x, 0, wp.z);
       wh.visible = true;
     } else {
       const wh = entityMeshes.get(whKey);
@@ -641,6 +717,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   const syncEntities = (sim: Simulation, dt: number) => {
     const live = new Set<string>();
     animTime += dt;
+    const propTier = sim.state.parkLevel >= 4 ? 5 : sim.state.parkLevel >= 2 ? 3 : 1;
 
     for (const a of sim.state.attractions) {
       const key = `attr_${a.uid}`;
@@ -674,99 +751,99 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       live.add(key);
       const def = getStall(s.defId);
       let obj = entityMeshes.get(key) as THREE.Group | undefined;
-      if (!obj || obj.userData.defId !== s.defId) {
+      const needRebuild = !obj || obj.userData.defId !== s.defId || obj.userData.tier !== s.tier;
+      if (needRebuild) {
         if (obj) {
           entitiesGroup.remove(obj);
           entityMeshes.delete(key);
         }
         if (!def) continue;
-        obj = buildStallMesh(def, mat);
-        obj.userData.defId = s.defId;
+        obj = buildStallMesh(def, mat, s.tier);
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
       const p = gridToWorld(s.pos.x, s.pos.y, 0);
       obj!.position.set(p.x, 0.12, p.z);
+      animateStall(obj!, dt, animTime);
     }
 
     for (const k of sim.grid.bins) {
       const key = `bin_${k}`;
       live.add(key);
-      let obj = entityMeshes.get(key) as THREE.Mesh | undefined;
-      if (!obj) {
-        obj = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.4, 8), mat("bin", 0x16a34a));
-        obj.castShadow = true;
+      let obj = entityMeshes.get(key) as THREE.Group | undefined;
+      if (!obj || !obj.isGroup || obj.userData.propTier !== propTier) {
+        if (obj) {
+          entitiesGroup.remove(obj);
+          entityMeshes.delete(key);
+        }
+        obj = buildBinMesh(mat, propTier);
+        obj.userData.propTier = propTier;
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
-      obj.position.set(p.x, 0.35, p.z);
+      obj.position.set(p.x, 0, p.z);
+      animateBin(obj, animTime, sim.state.trash.length > 0);
     }
 
     for (const k of sim.grid.benches) {
       const key = `bench_${k}`;
       live.add(key);
-      let obj = entityMeshes.get(key) as THREE.Mesh | undefined;
-      if (!obj) {
-        obj = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.28), mat("bench", 0x92400e));
+      let obj = entityMeshes.get(key) as THREE.Group | undefined;
+      if (!obj || !obj.isGroup || obj.userData.propTier !== propTier) {
+        if (obj) {
+          entitiesGroup.remove(obj);
+          entityMeshes.delete(key);
+        }
+        obj = buildBenchMesh(mat, propTier);
+        obj.userData.propTier = propTier;
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
-      obj.position.set(p.x, 0.28, p.z);
+      obj.position.set(p.x, 0, p.z);
+      animateBench(obj, animTime);
     }
 
     for (const [k, kind] of sim.grid.decor) {
       const key = `decor_${k}`;
       live.add(key);
-      let obj = entityMeshes.get(key) as THREE.Object3D | undefined;
-      if (!obj) {
-        if (kind === "tree" || kind === "bush") {
-          const g = new THREE.Group();
-          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.4, 6), mat("trunk", 0x78350f));
-          trunk.position.y = 0.3;
-          const leaf = new THREE.Mesh(
-            new THREE.SphereGeometry(kind === "tree" ? 0.35 : 0.22, 8, 8),
-            mat("leaf", kind === "tree" ? 0x15803d : 0x22c55e),
-          );
-          leaf.position.y = kind === "tree" ? 0.7 : 0.45;
-          g.add(trunk, leaf);
-          obj = g;
-        } else if (kind === "statue") {
-          obj = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.9, 5), mat("statue", 0xcbd5e1));
-          (obj as THREE.Mesh).position.y = 0.5;
-        } else {
-          obj = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 6), mat("flower", 0xec4899));
-          (obj as THREE.Mesh).position.y = 0.25;
+      let obj = entityMeshes.get(key) as THREE.Group | undefined;
+      if (!obj || obj.userData.decorKind !== kind || obj.userData.propTier !== propTier) {
+        if (obj) {
+          entitiesGroup.remove(obj);
+          entityMeshes.delete(key);
         }
+        obj = buildDecorMesh(mat, kind, key, propTier);
+        obj.userData.decorKind = kind;
+        obj.userData.propTier = propTier;
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
-      obj.position.x = p.x;
-      obj.position.z = p.z;
-      if (!("children" in obj) || (obj as THREE.Group).children.length === 0) {
-        // mesh already has y
-      } else {
-        obj.position.y = 0;
-      }
+      obj.position.set(p.x, 0, p.z);
+      animateDecor(obj, animTime);
     }
 
     for (const t of sim.state.trash) {
       const key = `trash_${t.id}`;
       live.add(key);
-      let obj = entityMeshes.get(key) as THREE.Mesh | undefined;
-      if (!obj) {
-        obj = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.25), mat("trash", 0x78716c));
+      let obj = entityMeshes.get(key) as THREE.Group | undefined;
+      if (!obj || !obj.isGroup) {
+        if (obj) {
+          entitiesGroup.remove(obj);
+          entityMeshes.delete(key);
+        }
+        obj = buildTrashMesh(mat, t.id);
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
       const p = gridToWorld(t.pos.x, t.pos.y, 0);
-      obj.position.set(p.x, 0.22, p.z);
-      obj.scale.setScalar(0.8 + t.amount * 0.15);
+      obj.position.set(p.x, 0, p.z);
+      setTrashAmount(obj, t.amount);
     }
 
     for (const v of sim.state.visitors) {
@@ -825,31 +902,69 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     for (const st of sim.state.staff) {
       const key = `staff_${st.id}`;
       live.add(key);
-      let obj = entityMeshes.get(key) as THREE.Mesh | undefined;
-      const colors = { janitor: 0x2563eb, runner: 0xea580c, mechanic: 0x7c3aed };
-      if (!obj) {
-        obj = new THREE.Mesh(geoCache.capsule, mat(`st_${st.role}`, colors[st.role]));
-        obj.castShadow = true;
+      let obj = entityMeshes.get(key) as THREE.Group | undefined;
+      if (!obj || obj.userData.role !== st.role) {
+        if (obj) {
+          entitiesGroup.remove(obj);
+          entityMeshes.delete(key);
+        }
+        obj = buildStaffMesh(mat, st.role, st.id);
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
       const p = pixelToWorld(st.pixel.x, st.pixel.y, 0);
-      obj.position.set(p.x, 0.5, p.z);
+      obj.position.set(p.x, 0, p.z);
+      const repairing = st.role === "mechanic" && st.busyTimer > 0;
+      const moving = st.path.length > 0 && st.busyTimer <= 0;
+      animateStaff(
+        obj,
+        st.facing,
+        repairing ? animTime * 2.2 : st.walkPhase,
+        repairing,
+        moving,
+      );
     }
 
-    // חניה — מכוניות
+    // חניה — מכוניות סטטיות
     for (const p of sim.state.parking) {
       if (!p.occupied) continue;
       const key = `car_${p.id}`;
       live.add(key);
-      let obj = entityMeshes.get(key) as THREE.Mesh | undefined;
-      if (!obj) {
-        obj = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.28, 0.35), mat(`car_${p.id}`, hexToNum(p.carColor || "#ef4444")));
+      let obj = entityMeshes.get(key) as THREE.Group | undefined;
+      if (!obj || !obj.isGroup) {
+        if (obj) {
+          entitiesGroup.remove(obj);
+          entityMeshes.delete(key);
+        }
+        obj = buildCarMesh(mat, p.id, p.carColor || "#ef4444");
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
       const wpos = gridToWorld(p.pos.x, p.pos.y, 0);
-      obj.position.set(wpos.x, 0.3, wpos.z);
+      obj.position.set(wpos.x, 0, wpos.z);
+    }
+
+    // שער — רק שני הדגלים זזים
+    const gateObj = entityMeshes.get("gate_arch");
+    if (gateObj) animateGateFlags(gateObj, animTime);
+
+    // נורות שביל בשלב גבוה — הבהוב
+    for (const [key, obj] of tileMeshes) {
+      if (key.startsWith("lamp_")) animatePathLamp(obj, animTime);
+    }
+
+    // מחסן — דלת נפתחת כשרץ ליד המחסן
+    const wh = entityMeshes.get("warehouse");
+    if (wh && wh.visible) {
+      const wp = sim.grid.warehousePos;
+      const runnerIn =
+        sim.state.warehouseBuilt &&
+        sim.state.staff.some(
+          (st) =>
+            st.role === "runner" &&
+            Math.abs(st.pos.x - wp.x) + Math.abs(st.pos.y - wp.y) <= 1,
+        );
+      setWarehouseDoorOpen(wh, runnerIn, animTime);
     }
 
     // ניקוי ישויות שנעלמו
@@ -873,8 +988,8 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
 
   const setDayNight = (hour: number) => {
     const tier = lastZoneTier < 0 ? 0 : lastZoneTier;
-    const daySky = tier === 0 ? "#6a9bc2" : tier === 1 ? "#5a8eb8" : "#4a6a9a";
-    const dayFog = tier === 0 ? "#8eb4c8" : tier === 1 ? "#7aa3b8" : "#6a88a8";
+    const daySky = tier === 0 ? "#87b8dc" : tier === 1 ? "#7aafd4" : "#6a9ec8";
+    const dayFog = tier === 0 ? "#c5dceb" : tier === 1 ? "#b8d4e8" : "#a8c8dc";
     if (hour >= 18.5) {
       scene.background = new THREE.Color("#0b1220");
       if (scene.fog instanceof THREE.FogExp2) {
@@ -899,12 +1014,12 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       scene.background = new THREE.Color(daySky);
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set(dayFog);
-        scene.fog.density = tier === 2 ? 0.006 : tier === 1 ? 0.007 : 0.008;
+        scene.fog.density = tier === 2 ? 0.005 : tier === 1 ? 0.0055 : 0.006;
       }
-      hemi.intensity = 0.55;
-      sun.intensity = tier === 0 ? 1.35 : tier === 1 ? 1.45 : 1.55;
-      sun.color.set(tier >= 2 ? "#fff0c8" : "#ffe2b0");
-      rim.intensity = 0.35;
+      hemi.intensity = 0.75;
+      sun.intensity = tier === 0 ? 1.55 : tier === 1 ? 1.6 : 1.65;
+      sun.color.set(tier >= 2 ? "#fff8e8" : "#fff4dd");
+      rim.intensity = 0.4;
     }
   };
 
