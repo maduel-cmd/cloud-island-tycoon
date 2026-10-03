@@ -37,6 +37,8 @@ export function useGameStore(): SimState & {
   repairAttraction: (id: string) => void;
   clearSelection: () => void;
   selectEntity: (kind: "attraction" | "stall" | "staff", id: string) => void;
+  fireStaff: (id: string) => boolean;
+  confirmDayClose: () => boolean;
 } {
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
@@ -57,6 +59,8 @@ export function useGameStore(): SimState & {
     repairAttraction: (id) => simulation.repairAttraction(id),
     clearSelection: () => simulation.clearSelection(),
     selectEntity: (kind, id) => simulation.selectEntity(kind, id),
+    fireStaff: (id) => simulation.fireStaff(id),
+    confirmDayClose: () => simulation.confirmDayClose(),
   };
 }
 

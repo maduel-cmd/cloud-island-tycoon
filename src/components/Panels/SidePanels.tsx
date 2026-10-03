@@ -3,6 +3,7 @@ import { ATTRACTIONS, TIER_NAMES_HE, attractionUpgradeCost, getAttraction } from
 import { DECOR } from "../../data/decor";
 import { STALLS, stallBuildCost, stallUpgradeCost, getStall } from "../../data/stalls";
 import { GAME_STATIC_ASSETS } from "../../config/assets";
+import { GEM_REPAIR_COST } from "../../managers/Simulation";
 import { useGameStore } from "../../state/useGameStore";
 import { useI18n } from "../../i18n/I18nContext";
 import {
@@ -460,8 +461,18 @@ function PanelBody({
         <div className="rounded border border-[color:var(--wow-border)] bg-[#1a1410] p-3">
           <div className="text-xs text-[color:var(--wow-muted)]">{t("warehouseStock")}</div>
           <div className="font-display text-2xl font-bold text-[color:var(--wow-parchment)]">{store.warehouseStock}</div>
-          <button type="button" className="btn-primary mt-2 w-full" onClick={() => store.buyWarehouseStock(40)}>
-            {t("orderSupply")}
+          {!store.warehouseBuilt && (
+            <p className="mt-2 text-[11px] font-semibold text-amber-200" data-testid="no-warehouse-hint">
+              {t("needWarehouseFirst")}
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn-primary mt-2 w-full"
+            data-testid="order-supply"
+            onClick={() => store.buyWarehouseStock(40)}
+          >
+            {store.warehouseBuilt ? t("orderSupply") : t("orderSupplyBlocked")}
           </button>
         </div>
         <div className="rounded border border-[color:var(--wow-border)] bg-[#1a1410] p-3 text-xs text-[color:var(--wow-muted)]">
@@ -565,7 +576,7 @@ function SelectionCard({
                 className="btn-primary flex-1"
                 onClick={() => store.repairAttraction(selectedAttr.uid)}
               >
-                {t("repairCost", { n: 350 })}
+                {t("repairGems", { n: GEM_REPAIR_COST })}
               </button>
             )}
             {selectedAttr.tier < 5 && (

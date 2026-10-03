@@ -2,9 +2,11 @@ import { ThreeGameView } from "./components/ThreeGameView";
 import { TopBar } from "./components/HUD/TopBar";
 import { BottomFabBar } from "./components/HUD/BottomFabBar";
 import { ZoomControls } from "./components/HUD/ZoomControls";
+import { LoopGoalsHud } from "./components/HUD/LoopGoalsHud";
 import { SidePanels } from "./components/Panels/SidePanels";
 import { ToastMessage } from "./components/Modals/ToastMessage";
 import { WelcomeModal } from "./components/Modals/WelcomeModal";
+import { DayCloseModal } from "./components/Modals/DayCloseModal";
 import { I18nProvider, useI18n } from "./i18n/I18nContext";
 
 function AppShell() {
@@ -16,7 +18,6 @@ function AppShell() {
         <ThreeGameView />
       </div>
 
-      {/* וינייטה כהה כמו מסכי WoW */}
       <div
         className="pointer-events-none absolute inset-0 z-10"
         style={{
@@ -26,11 +27,13 @@ function AppShell() {
       />
 
       <TopBar />
+      <LoopGoalsHud />
       <ToastMessage />
       <ZoomControls />
       <SidePanels />
       <BottomFabBar />
       <WelcomeModal />
+      <DayCloseModal />
     </div>
   );
 }
