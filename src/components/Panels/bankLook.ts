@@ -9,10 +9,13 @@ export type BankLookRef = {
   id: string;
 };
 
-/** Canonical still path for a look id (png first, matching parkLooks). */
+/**
+ * Bank-card art path (transparent punch derived from look stills).
+ * Park billboards keep using public/assets/looks — these copies are bank-only.
+ */
 export function bankLookSrc(kind: BankLookKind, id: string): string {
   const safe = id.replace(/[^a-z0-9_-]/gi, "_").toLowerCase();
-  return `/assets/looks/${kind}/${safe}.png`;
+  return `/assets/ui/bank-looks/${kind}/${safe}.png`;
 }
 
 /**
