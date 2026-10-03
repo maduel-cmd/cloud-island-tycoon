@@ -550,8 +550,12 @@ export function setWarehouseDoorOpen(obj: THREE.Object3D, open: boolean, time: n
   if (open) door.position.x = Math.sin(time * 2) * 0.02;
 }
 
-/** Gate flags only — body built in ThreeParkWorld; this animates named flags. */
+/** Gate flags only — body built in ThreeParkWorld; this animates named flags (or look billboard). */
 export function animateGateFlags(obj: THREE.Object3D, time: number): void {
+  if (obj.userData.hasLookImage) {
+    animateLookBillboard(obj, 0.016, time);
+    return;
+  }
   const fl = obj.getObjectByName("gateFlagL");
   const fr = obj.getObjectByName("gateFlagR");
   if (fl) fl.rotation.y = Math.sin(time * 2.4) * 0.28;

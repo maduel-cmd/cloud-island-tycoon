@@ -8,14 +8,10 @@ running (retargeted onto the look billboard / path tile).
 
 - `attraction/<attractionId>.png`
 - `stall/<stallId>.png`
-- `prop/<kind>.png` — `tree`, `bush`, `statue`, `flower`, `bin`, `bench`, `warehouse`, `path`
+- `prop/<kind>.png` — `tree`, `bush`, `statue`, `flower`, `bin`, `bench`, `warehouse`, `path`, `gate`
 - `staff/<role>.png` — `janitor`, `runner`, `mechanic`
 
-Ids match the game catalog (`sky_coaster`, `balloon_vendor`, …).
+Ids match the game catalog (`sky_coaster`, `balloon_vendor`, `inverted_coaster`, …).
 
-## Skipped until replacements arrive
-
-These stills exist in the pack but are **not** applied (wrong look):
-
-- `gate.png` — must show two openings, not one arch (gate stays procedural)
-- `inverted-coaster.png` — car must hang under the track (ride stays procedural)
+Gate still: two openings + beam + two flags (`prop/gate.png`).
+Inverted coaster still: car hangs under the track (`attraction/inverted_coaster.png`).

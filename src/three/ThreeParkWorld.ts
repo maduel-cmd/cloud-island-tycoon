@@ -721,11 +721,14 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
           c.receiveShadow = true;
         }
       });
+      // Flag-wave cycle so the Nano Banana gate still keeps motion
+      gateObj.userData.cycles = [{ type: "flag", speed: 2.4, amp: 0.28 }];
       entitiesGroup.add(gateObj);
       entityMeshes.set(gateKey, gateObj);
     }
     gateObj.position.set(gp.x, 0.15, gp.z);
     gateObj.scale.setScalar(1.45);
+    ensureLook(gateObj, "prop", "gate", { w: 2, h: 1 });
 
     // מחסן — sliding door + shelf; high stage second wing
     const whKey = "warehouse";

@@ -1,20 +1,18 @@
 /**
  * Nano Banana high-tier stills → live park entity looks.
- * Skip list: wrong stills kept on procedural look until replacements arrive.
  */
 import type { LookKind } from "./parkLooks";
 
-/** Entity ids that must stay on written/procedural look (bad stills). */
+/** Entity ids that must stay on written/procedural look (no still yet / wrong still). */
 export const LOOK_SKIP_IDS: ReadonlySet<string> = new Set([
-  "inverted_coaster", // still shows car on top of track — needs hang-under
-  "gate", // still shows one arch — high stage is two openings
-  "gate_arch",
+  // empty — gate + inverted coaster replacements are live
 ]);
 
 /** All look assets shipped under public/assets/looks/<kind>/<id>.png */
 export const LOOK_CATALOG: ReadonlyArray<{ kind: LookKind; id: string }> = [
   // attractions
   { kind: "attraction", id: "sky_coaster" },
+  { kind: "attraction", id: "inverted_coaster" },
   { kind: "attraction", id: "launch_coaster" },
   { kind: "attraction", id: "wild_mouse" },
   { kind: "attraction", id: "drop_tower" },
@@ -73,6 +71,7 @@ export const LOOK_CATALOG: ReadonlyArray<{ kind: LookKind; id: string }> = [
   { kind: "prop", id: "bench" },
   { kind: "prop", id: "warehouse" },
   { kind: "prop", id: "path" },
+  { kind: "prop", id: "gate" },
   // staff
   { kind: "staff", id: "janitor" },
   { kind: "staff", id: "runner" },
