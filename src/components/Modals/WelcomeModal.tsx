@@ -43,15 +43,8 @@ export function WelcomeModal() {
           ))}
         </div>
 
-        <p className="mt-4 text-sm leading-relaxed text-[color:var(--wow-parchment)]">{t("welcomeBody")}</p>
-        <ul className="mt-3 space-y-1 text-xs text-[color:var(--wow-muted)]">
-          <li>• {t("welcomeLi1")}</li>
-          <li>• {t("welcomeLi2")}</li>
-          <li>• {t("welcomeLi3")}</li>
-          <li>• {t("welcomeLi4")}</li>
-          <li>• {t("welcomeLi5")}</li>
-          <li>• {t("welcomeLi6")}</li>
-        </ul>
+        <p className="mt-4 text-sm leading-relaxed text-[color:var(--wow-parchment)]">{t("welcomeBodyShort")}</p>
+        <p className="mt-2 text-xs font-semibold text-[color:var(--wow-gold)]">{t("welcomeFirstStep")}</p>
         <button type="button" className="btn-primary mt-5 w-full py-3 text-base" onClick={() => setOpen(false)}>
           {t("welcomeCta")}
         </button>

@@ -15,6 +15,10 @@ export function TopBar() {
     setSpeed,
     parkLevel,
     parkXp,
+    nightWageCost,
+    ticketGateFee,
+    setTicketGateFee,
+    bootstrapClockHeld,
   } = useGameStore();
   const { t, locale, setLocale, locales, dir } = useI18n();
 
@@ -24,19 +28,36 @@ export function TopBar() {
   const xpPct = Math.min(100, (parkXp / xpNeed) * 100);
   const nextLevel = parkLevel + 1;
   const zoneName = parkLevel <= 1 ? t("zoneStarter") : parkLevel <= 3 ? t("zoneGrowing") : t("zoneEpic");
+  const wage = nightWageCost();
+  const clockHeld = bootstrapClockHeld();
 
   return (
     <header
       className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pt-[max(0.4rem,env(safe-area-inset-top))] sm:px-3 sm:pt-2"
       dir={dir}
     >
-      <div className="pointer-events-auto wow-frame flex flex-wrap items-center gap-2 rounded-md px-2.5 py-2 sm:gap-3 sm:px-3">
-        <div className="hidden flex-col pe-2 sm:flex">
-          <div className="wow-title text-[11px] font-extrabold uppercase tracking-wide">{t("brand")}</div>
-          <div className="text-[10px] font-semibold text-[color:var(--wow-muted)]">{zoneName}</div>
+      <div className="pointer-events-auto wow-frame flex flex-wrap items-center gap-1.5 rounded-md px-2 py-1.5 sm:gap-3 sm:px-3 sm:py-2">
+        <div className="flex min-w-0 flex-col pe-1 sm:pe-2">
+          <div className="wow-title text-[10px] font-extrabold uppercase tracking-wide sm:text-[11px]">
+            {t("brand")}
+          </div>
+          <div className="truncate text-[9px] font-semibold text-[color:var(--wow-muted)] sm:text-[10px]">
+            {zoneName}
+          </div>
         </div>
 
-        <ResourceChip label={t("cash")} value={Math.floor(cash).toLocaleString()} barColor="#c9a227" pct={Math.min(100, cash / 80)} />
+        <div className="wow-resource min-w-0">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-[9px] font-bold uppercase text-[color:var(--wow-muted)]">{t("cash")}</span>
+            <span className="text-xs font-extrabold tabular-nums text-[color:var(--wow-parchment)] sm:text-sm">
+              ₪{Math.floor(cash).toLocaleString()}
+            </span>
+            <span className="text-[9px] font-semibold tabular-nums text-amber-200/90">
+              {t("nightWageShort", { n: wage })}
+            </span>
+          </div>
+        </div>
+
         <ResourceChip label={t("gems")} value={`${gems}`} barColor="#3b82f6" pct={Math.min(100, gems * 4)} />
         <ResourceChip
           label={t("satisfaction")}
@@ -46,9 +67,34 @@ export function TopBar() {
           extra={"★".repeat(Math.max(0, Math.min(5, Math.round(satisfaction / 20))))}
         />
 
-        <div className="ms-auto flex min-w-0 flex-1 items-center justify-end gap-2 sm:max-w-md">
-          <div className="hidden min-w-0 flex-1 flex-col sm:flex">
-            <div className="mb-0.5 flex justify-between text-[10px] font-bold text-[color:var(--wow-gold)]">
+        <div className="flex items-center gap-0.5 rounded border border-[color:var(--wow-border)] bg-[#120e0a]/90 px-1 py-0.5">
+          <button
+            type="button"
+            className="px-1 text-[11px] font-bold text-[color:var(--wow-gold)]"
+            aria-label={t("ticketDown")}
+            onClick={() => setTicketGateFee(ticketGateFee - 1)}
+          >
+            −
+          </button>
+          <div className="flex flex-col items-center leading-none">
+            <span className="text-[8px] font-bold uppercase text-[color:var(--wow-muted)]">{t("ticketFee")}</span>
+            <span className="text-[11px] font-extrabold tabular-nums text-[color:var(--wow-parchment)]">
+              ₪{ticketGateFee}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="px-1 text-[11px] font-bold text-[color:var(--wow-gold)]"
+            aria-label={t("ticketUp")}
+            onClick={() => setTicketGateFee(ticketGateFee + 1)}
+          >
+            +
+          </button>
+        </div>
+
+        <div className="ms-auto flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:gap-2 sm:max-w-md">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="mb-0.5 flex justify-between text-[9px] font-bold text-[color:var(--wow-gold)] sm:text-[10px]">
               <span>
                 {t("parkLevel")} {parkLevel}
               </span>
@@ -63,7 +109,15 @@ export function TopBar() {
           </div>
 
           <div className="text-[10px] font-bold tabular-nums text-[color:var(--wow-parchment)]">
-            {t("day")} {day} · {String(hour).padStart(2, "0")}:{String(minute).padStart(2, "0")}
+            {t("day")} {day}
+            {clockHeld ? (
+              <span className="text-[color:var(--wow-gold-dim)]"> · {t("clockHeld")}</span>
+            ) : (
+              <span>
+                {" "}
+                · {String(hour).padStart(2, "0")}:{String(minute).padStart(2, "0")}
+              </span>
+            )}
           </div>
 
           <select
@@ -118,14 +172,14 @@ function ResourceChip({
   extra?: string;
 }) {
   return (
-    <div className="wow-resource min-w-[4.5rem]">
+    <div className="wow-resource min-w-[3.75rem] sm:min-w-[4.5rem]">
       <div className="flex min-w-0 flex-col">
         <div className="flex items-baseline gap-1">
           <span className="text-[9px] font-bold uppercase text-[color:var(--wow-muted)]">{label}</span>
           {extra ? <span className="text-[9px] text-amber-300">{extra}</span> : null}
         </div>
         <span className="text-xs font-extrabold tabular-nums text-[color:var(--wow-parchment)] sm:text-sm">{value}</span>
-        <div className="wow-bar-track mt-0.5 w-16">
+        <div className="wow-bar-track mt-0.5 w-12 sm:w-16">
           <div className="h-full" style={{ width: `${Math.max(4, Math.min(100, pct))}%`, background: barColor }} />
         </div>
       </div>

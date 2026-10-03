@@ -292,37 +292,39 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
 
   if (!open) return null;
 
-  const place = () => {
-    if (!selected || selected.locked) return;
-    if (selected.id === "hire_janitor") {
+  const placeCard = (card: BankCard | undefined) => {
+    if (!card || card.locked) return;
+    if (card.id === "hire_janitor") {
       store.hireStaff("janitor");
       onClose();
       return;
     }
-    if (selected.id === "hire_runner") {
+    if (card.id === "hire_runner") {
       store.hireStaff("runner");
       onClose();
       return;
     }
-    if (selected.id === "hire_mechanic") {
+    if (card.id === "hire_mechanic") {
       store.hireStaff("mechanic");
       onClose();
       return;
     }
-    if (selected.id.startsWith("decor:")) {
-      store.setBuildMode("decor", selected.id.replace("decor:", ""));
+    if (card.id.startsWith("decor:")) {
+      store.setBuildMode("decor", card.id.replace("decor:", ""));
       onClose();
       return;
     }
-    if (selected.kind === "attraction") store.setBuildMode("attraction", selected.id);
-    else if (selected.kind === "stall") store.setBuildMode("stall", selected.id);
-    else if (selected.id === "path") store.setBuildMode("path");
-    else if (selected.id === "bin") store.setBuildMode("bin");
-    else if (selected.id === "bench") store.setBuildMode("bench");
-    else if (selected.id === "parking") store.setBuildMode("parking");
-    else if (selected.id === "warehouse") store.setBuildMode("warehouse");
+    if (card.kind === "attraction") store.setBuildMode("attraction", card.id);
+    else if (card.kind === "stall") store.setBuildMode("stall", card.id);
+    else if (card.id === "path") store.setBuildMode("path");
+    else if (card.id === "bin") store.setBuildMode("bin");
+    else if (card.id === "bench") store.setBuildMode("bench");
+    else if (card.id === "parking") store.setBuildMode("parking");
+    else if (card.id === "warehouse") store.setBuildMode("warehouse");
     onClose();
   };
+
+  const place = () => placeCard(selected);
 
   return (
     <div className="absolute inset-0 z-[55] flex items-end justify-center sm:items-center" dir={dir}>
@@ -382,7 +384,12 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                   key={c.id}
                   type="button"
                   data-testid={`bank-card-${c.id}`}
-                  onClick={() => setSelectedId(c.id)}
+                  onClick={() => {
+                    setSelectedId(c.id);
+                    if (typeof window !== "undefined" && window.innerWidth < 640 && !c.locked) {
+                      placeCard(c);
+                    }
+                  }}
                   className={`relative flex flex-col items-center rounded border-2 bg-[#1a1410]/90 p-2 text-center transition ${
                     active
                       ? "border-[color:var(--wow-gold)] shadow-[0_0_0_2px_rgba(232,197,71,0.35)]"
@@ -484,6 +491,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           <button
             type="button"
             className="btn-primary w-full py-3 text-base disabled:opacity-50"
+            data-testid="bank-place-btn"
             disabled={!selected || selected.locked}
             onClick={place}
           >
