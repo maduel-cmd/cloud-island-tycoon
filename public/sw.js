@@ -1,6 +1,17 @@
 /* Minimal service worker — enables installability (Add to Home Screen / desktop app) */
 const CACHE = "cit-shell-v1";
-const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+const PRECACHE = [
+  "/",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/icon-192-maskable.png",
+  "/icons/icon-512-maskable.png",
+  "/icons/apple-touch-icon.png",
+  "/apple-touch-icon.png",
+  "/icons/favicon-32.png",
+  "/icons/favicon-48.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

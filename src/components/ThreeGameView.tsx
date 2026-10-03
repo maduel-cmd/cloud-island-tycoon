@@ -43,7 +43,13 @@ export function ThreeGameView() {
       const pts = [...activePointers.values()];
       if (pts.length < 2) return null;
       const [a, b] = pts;
-      return { dist: Math.hypot(a!.x - b!.x, a!.y - b!.y) };
+      const dx = b!.x - a!.x;
+      const dy = b!.y - a!.y;
+      return {
+        dist: Math.hypot(dx, dy),
+        /** Screen angle between the two fingers — twist delta rotates the park */
+        angle: Math.atan2(dy, dx),
+      };
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -60,7 +66,7 @@ export function ThreeGameView() {
         cameraDragging = false;
         park.endDrag();
         const p = pinchStats();
-        if (p) park.beginPinch(p.dist);
+        if (p) park.beginPinch(p.dist, p.angle);
         return;
       }
 
@@ -105,7 +111,7 @@ export function ThreeGameView() {
       if (activePointers.size >= 2) {
         pendingTap = null;
         const p = pinchStats();
-        if (p) park.pinch(p.dist);
+        if (p) park.pinch(p.dist, p.angle);
         return;
       }
 
