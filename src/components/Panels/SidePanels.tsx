@@ -23,10 +23,10 @@ const CAT_KEYS = {
 } as const;
 
 const TAB_KEYS = [
-  ["build", "build", "🏗️"],
-  ["staff", "staff", "👷"],
-  ["logistics", "logistics", "📦"],
-  ["expand", "expand", "🗺️"],
+  ["build", "build"],
+  ["staff", "staff"],
+  ["logistics", "logistics"],
+  ["expand", "expand"],
 ] as const;
 
 export function SidePanels() {
@@ -97,53 +97,41 @@ export function SidePanels() {
         )}
 
         {sheetOpen && (
-          <div className="pointer-events-auto wow-frame mx-0 flex max-h-[min(58vh,420px)] flex-col rounded-t-md">
-            <div className="flex items-center justify-between px-3 pb-1 pt-2">
-              <div className="mx-auto h-1 w-10 rounded-full bg-[color:var(--wow-gold-dim)]" />
-            </div>
-            <div className="flex items-center justify-between px-3 pb-2">
-              <span className="wow-title text-sm font-bold">
+          <div className="pointer-events-auto cit-card mx-0 flex max-h-[min(52vh,380px)] flex-col rounded-t">
+            <div className="flex items-center justify-between border-b border-[color:var(--cit-border)] px-3 py-2">
+              <span className="text-sm font-bold text-[color:var(--cit-text)]">
                 {t(TAB_KEYS.find((row) => row[0] === tab)?.[1] ?? "build")}
               </span>
-              <button
-                type="button"
-                className="btn-chip !text-xs"
-                onClick={() => setTab(null)}
-              >
+              <button type="button" className="btn-chip !text-xs" onClick={() => setTab(null)}>
                 {t("close")}
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-2">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-2 pt-2">
               {renderPanelBody()}
             </div>
           </div>
         )}
       </div>
 
-      <aside className="pointer-events-auto absolute bottom-4 end-4 top-24 z-40 hidden w-[340px] flex-col gap-2 sm:flex">
-        <div className="glass-panel flex gap-1 p-1">
-          {TAB_KEYS.map(([id, labelKey]) => (
-            <button
-              key={id}
-              type="button"
-              className={`flex-1 rounded border px-2 py-2 text-xs font-semibold transition ${
-                tab === id
-                  ? "border-[color:var(--wow-gold)] bg-[#5a4018] text-[color:var(--wow-gold)]"
-                  : "border-transparent text-[color:var(--wow-muted)] hover:bg-[#2a2018] hover:text-[color:var(--wow-parchment)]"
-              }`}
-              onClick={() => setTab(id)}
-            >
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
-        <div className="glass-panel min-h-0 flex-1 overflow-hidden p-3">
-          <div className="flex h-full min-h-0 flex-col overflow-y-auto">{renderPanelBody()}</div>
-        </div>
-      </aside>
+      {/* Desktop: panel only after a click, one side — gate stays visible */}
+      {sheetOpen ? (
+        <aside className="pointer-events-auto absolute bottom-4 end-3 top-28 z-40 hidden w-[300px] flex-col sm:flex">
+          <div className="cit-card flex min-h-0 flex-1 flex-col overflow-hidden rounded">
+            <div className="flex items-center justify-between border-b border-[color:var(--cit-border)] px-3 py-2">
+              <span className="text-sm font-bold text-[color:var(--cit-text)]">
+                {t(TAB_KEYS.find((row) => row[0] === tab)?.[1] ?? "build")}
+              </span>
+              <button type="button" className="btn-chip !text-xs" onClick={() => setTab(null)}>
+                {t("close")}
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">{renderPanelBody()}</div>
+          </div>
+        </aside>
+      ) : null}
 
       {showSelection && (
-        <div className="pointer-events-auto absolute bottom-4 start-4 z-40 hidden w-[300px] sm:block">
+        <div className="pointer-events-auto absolute bottom-20 start-3 z-40 hidden w-[280px] sm:bottom-4 sm:block">
           <SelectionCard
             selectedAttr={selectedAttr}
             selectedStall={selectedStall}

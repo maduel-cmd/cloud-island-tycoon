@@ -58,6 +58,67 @@ export const GAME_STATIC_ASSETS: Record<string, GameAsset> = {
     /** גליון 12×4 מבקרים — רינדור runtime בלבד (לא על מגרש ריק) */
     src: "/assets/visitors/visitor-sheet.png",
   },
+  TILE_GRASS: {
+    id: "tile_grass",
+    name: "Grass Ground Tile",
+    type: "sprite_image",
+    src: "/assets/tiles/tile-grass.png",
+  },
+  TILE_PATH: {
+    id: "tile_path",
+    name: "Path Ground Tile",
+    type: "sprite_image",
+    src: "/assets/tiles/tile-path.png",
+  },
+  TILE_CLOUD_EDGE: {
+    id: "tile_cloud_edge",
+    name: "Cliff-Edge Cloud Tile",
+    type: "sprite_image",
+    /** Outside buildable park only — never on grass/path the player can build on */
+    src: "/assets/tiles/tile-cloud-edge.png",
+  },
+  CARD_CAROUSEL: {
+    id: "card_carousel",
+    name: "Carousel Build Card",
+    type: "sprite_image",
+    src: "/assets/ui/cards/card-carousel.png",
+  },
+  CARD_COTTON_CANDY: {
+    id: "card_cotton_candy",
+    name: "Cotton Candy Build Card",
+    type: "sprite_image",
+    src: "/assets/ui/cards/card-cotton-candy.png",
+  },
+  FAB_BUILD: {
+    id: "fab_build",
+    name: "Build FAB Icon",
+    type: "sprite_image",
+    src: "/assets/ui/fab/icon-build.png",
+  },
+  FAB_STAFF: {
+    id: "fab_staff",
+    name: "Staff FAB Icon",
+    type: "sprite_image",
+    src: "/assets/ui/fab/icon-staff.png",
+  },
+  FAB_LOGISTICS: {
+    id: "fab_logistics",
+    name: "Logistics FAB Icon",
+    type: "sprite_image",
+    src: "/assets/ui/fab/icon-logistics.png",
+  },
+  FAB_QUESTS: {
+    id: "fab_quests",
+    name: "Quests FAB Icon",
+    type: "sprite_image",
+    src: "/assets/ui/fab/icon-quests.png",
+  },
+  FAB_EXPAND: {
+    id: "fab_expand",
+    name: "Expand FAB Icon",
+    type: "sprite_image",
+    src: "/assets/ui/fab/icon-expand.png",
+  },
 };
 
 export function getAnimationAsset(key: keyof typeof GAME_ANIMATIONS): GameAsset {

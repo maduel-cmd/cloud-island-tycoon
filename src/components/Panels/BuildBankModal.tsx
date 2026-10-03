@@ -11,6 +11,7 @@ import {
   decorDisplayName,
   utilDisplayName,
 } from "../../i18n/names";
+import { GAME_STATIC_ASSETS } from "../../config/assets";
 
 type BankTab = "thrill" | "family" | "stalls" | "utilities";
 
@@ -31,7 +32,15 @@ type BankCard = {
   staffNeeded: number;
   footprint: string;
   freeKit?: boolean;
+  /** Transparent card art from public/assets/ui/cards */
+  artSrc?: string;
 };
+
+function cardArtFor(id: string): string | undefined {
+  if (id === "grand_carousel") return GAME_STATIC_ASSETS.CARD_CAROUSEL?.src;
+  if (id === "cotton_candy") return GAME_STATIC_ASSETS.CARD_COTTON_CANDY?.src;
+  return undefined;
+}
 
 const TAB_META: { id: BankTab; icon: string; labelKey: string }[] = [
   { id: "thrill", icon: "🎢", labelKey: "coasters" },
@@ -84,6 +93,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           staffNeeded: 1,
           footprint: "1×1",
           freeKit: free,
+          artSrc: cardArtFor(s.id),
         };
       });
     }
@@ -278,6 +288,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
         staffNeeded: a.footprint.w >= 3 ? 2 : 1,
         footprint: `${a.footprint.w}×${a.footprint.h}`,
         freeKit: free,
+        artSrc: cardArtFor(a.id),
       };
     });
   }, [tab, store.parkLevel, store.starterKit, store.warehouseBuilt, locale, t]);
@@ -396,7 +407,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                       : "border-[color:var(--wow-border)] hover:border-[color:var(--wow-gold-dim)] hover:bg-[#241c14]"
                   }`}
                 >
-                  <IsoThumb shape={c.shape} color={c.color} accent={c.accent} locked={c.locked} size={96} />
+                  <IsoThumb shape={c.shape} color={c.color} accent={c.accent} locked={c.locked} size={96} artSrc={c.artSrc} />
                   <div className="mt-1.5 line-clamp-2 text-[11px] font-bold leading-tight text-[color:var(--wow-parchment)] sm:text-xs">
                     {c.name}
                   </div>
@@ -426,6 +437,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                     accent={selected.accent}
                     locked={selected.locked}
                     size={140}
+                    artSrc={selected.artSrc}
                   />
                 </div>
                 <h3 className="wow-title mt-3 text-center text-lg font-bold">

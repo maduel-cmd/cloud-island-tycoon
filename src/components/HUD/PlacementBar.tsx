@@ -4,7 +4,7 @@ import { getAttraction } from "../../data/attractions";
 import { getStall } from "../../data/stalls";
 import { getDecor } from "../../data/decor";
 
-/** Compact placement strip — stays visible after the build sheet closes on phones */
+/** Replaces the bottom bar while placing — item name + cancel only */
 export function PlacementBar() {
   const { buildMode, selectedBuildId, setBuildMode, cash } = useGameStore();
   const { t, dir, locale } = useI18n();
@@ -30,23 +30,21 @@ export function PlacementBar() {
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 bottom-[5.75rem] z-[49] flex justify-center px-2 sm:bottom-24"
+      className="pointer-events-auto cit-card flex max-w-[min(96vw,420px)] items-center gap-2 rounded px-3 py-2"
       dir={dir}
       data-testid="placement-bar"
     >
-      <div className="pointer-events-auto wow-frame flex max-w-[min(96vw,420px)] items-center gap-2 rounded-md px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-bold text-[color:var(--wow-gold)]">{label}</div>
-          <div className="text-[10px] text-[color:var(--wow-muted)]">
-            {buildMode === "path" ? t("pathHintShort") : t("tapToPlace")}
-            {" · "}
-            ₪{Math.floor(cash).toLocaleString()}
-          </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-bold text-[color:var(--cit-text)]">{label}</div>
+        <div className="text-[10px] text-[color:var(--cit-label)]">
+          {buildMode === "path" ? t("pathHintShort") : t("tapToPlace")}
+          {" · "}
+          <span className="cit-cash text-[11px]">₪{Math.floor(cash).toLocaleString()}</span>
         </div>
-        <button type="button" className="btn-chip !px-3 !py-2 !text-xs" onClick={() => setBuildMode("none")}>
-          {t("cancelPlace")}
-        </button>
       </div>
+      <button type="button" className="btn-chip !px-3 !py-2 !text-xs" onClick={() => setBuildMode("none")}>
+        {t("cancelPlace")}
+      </button>
     </div>
   );
 }

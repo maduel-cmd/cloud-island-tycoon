@@ -18,13 +18,32 @@ export function IsoThumb({
   accent = "#fbbf24",
   locked = false,
   size = 88,
+  artSrc,
 }: {
   shape: ThumbShape;
   color: string;
   accent?: string;
   locked?: boolean;
   size?: number;
+  /** Transparent build-bank card art when available */
+  artSrc?: string;
 }) {
+  if (artSrc) {
+    return (
+      <div
+        className={`relative flex items-center justify-center overflow-hidden rounded-xl bg-transparent ${locked ? "grayscale contrast-75" : ""}`}
+        style={{ width: size, height: size * 0.85 }}
+      >
+        <img
+          src={artSrc}
+          alt=""
+          draggable={false}
+          className="h-full w-full object-contain"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative overflow-hidden rounded-xl ${locked ? "grayscale contrast-75" : ""}`}

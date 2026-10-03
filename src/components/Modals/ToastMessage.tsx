@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useGameStore } from "../../state/useGameStore";
 import { simulation } from "../../managers/Simulation";
+import { localizeSimMessage } from "../../i18n/localizeSimMessage";
+import { useI18n } from "../../i18n/I18nContext";
 
-/** Auto-dismissing toast — sits above the bottom dock, never over the HUD */
+/** Auto-dismiss toast above the bottom bar — thin card, no glow */
 export function ToastMessage() {
   const message = useGameStore().message;
+  const { locale } = useI18n();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -15,7 +18,6 @@ export function ToastMessage() {
     setVisible(true);
     const t = window.setTimeout(() => {
       setVisible(false);
-      // clear store message so it doesn't reappear
       simulation.state.message = null;
     }, 2800);
     return () => window.clearTimeout(t);
@@ -23,10 +25,12 @@ export function ToastMessage() {
 
   if (!visible || !message) return null;
 
+  const text = localizeSimMessage(message, locale);
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[5.5rem] z-[45] flex justify-center px-3 sm:bottom-6 sm:z-30">
-      <div className="glass-panel max-w-[min(92vw,360px)] px-3 py-2 text-center text-xs font-semibold text-[color:var(--wow-parchment)] sm:text-sm">
-        {message}
+    <div className="pointer-events-none absolute inset-x-0 bottom-[4.75rem] z-[45] flex justify-center px-3 sm:bottom-6">
+      <div className="cit-card max-w-[min(92vw,360px)] rounded px-3 py-2 text-center text-xs font-semibold text-[color:var(--cit-text)] sm:text-sm">
+        {text}
       </div>
     </div>
   );

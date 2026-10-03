@@ -12,11 +12,9 @@ export function GameOverModal() {
       dir={dir}
       data-testid="game-over-modal"
     >
-      <div className="wow-frame w-full max-w-sm rounded-md p-5 text-center">
-        <h2 className="wow-title text-2xl font-extrabold">{t("gameOverTitle")}</h2>
-        <p className="mt-3 text-sm text-[color:var(--wow-parchment)]">
-          {gameOverReason ?? t("gameOverFallback")}
-        </p>
+      <div className="cit-card w-full max-w-sm rounded p-5 text-center">
+        <h2 className="text-2xl font-extrabold text-[color:var(--cit-text)]">{t("gameOverTitle")}</h2>
+        <p className="mt-3 text-sm text-[color:var(--cit-text)]">{gameOverReason ?? t("gameOverFallback")}</p>
         <button type="button" className="btn-primary mt-5 w-full py-3" onClick={() => restartPark()}>
           {t("restartPark")}
         </button>
