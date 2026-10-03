@@ -45,7 +45,11 @@ export function ThreeGameView() {
       const pts = [...activePointers.values()];
       if (pts.length < 2) return null;
       const [a, b] = pts;
-      return { dist: Math.hypot(a!.x - b!.x, a!.y - b!.y) };
+      return {
+        dist: Math.hypot(a!.x - b!.x, a!.y - b!.y),
+        mx: (a!.x + b!.x) / 2,
+        my: (a!.y + b!.y) / 2,
+      };
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -107,7 +111,7 @@ export function ThreeGameView() {
       if (activePointers.size >= 2) {
         pendingTap = null;
         const p = pinchStats();
-        if (p) park.pinch(p.dist);
+        if (p) park.pinch(p.dist, p.mx, p.my);
         return;
       }
 

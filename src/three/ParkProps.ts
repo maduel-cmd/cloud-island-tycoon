@@ -20,35 +20,44 @@ const FACE_YAW: Record<string, number> = {
   ne: -Math.PI / 2,
 };
 
+function stageOf(tier: number): number {
+  return Math.max(1, Math.min(5, Math.floor(tier) || 1));
+}
+
 function isHigh(tier: number): boolean {
-  return tier >= 4;
+  return stageOf(tier) >= 4;
 }
 
 export function buildStaffMesh(mat: MatFn, role: StaffRole, id: string): THREE.Group {
   const g = new THREE.Group();
   const key = `staff_${id}`;
   const col = ROLE_COLOR[role];
-  // Person with a tool — not a bigger capsule
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.22, 4, 8), mat(`${key}_body`, col));
-  torso.position.y = 0.42;
-  torso.name = "body";
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), mat(`${key}_head`, 0xf1c27d));
-  head.position.y = 0.7;
-  const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.14, 3, 6), mat(`${key}_ll`, col));
-  const legR = legL.clone();
-  legL.position.set(-0.055, 0.14, 0);
-  legR.position.set(0.055, 0.14, 0);
-  legL.name = "legL";
-  legR.name = "legR";
-  const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.12, 3, 6), mat(`${key}_al`, col));
-  const armR = armL.clone();
-  armL.position.set(-0.16, 0.45, 0);
-  armR.position.set(0.16, 0.45, 0);
-  armL.name = "armL";
-  armR.name = "armR";
-  g.add(torso, head, legL, legR, armL, armR);
 
+  // Distinct body silhouettes per role — not one capsule with a swapped prop
   if (role === "janitor") {
+    // Stockier overalls + peaked cap + broom
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.2, 4, 8), mat(`${key}_body`, col));
+    torso.position.y = 0.4;
+    torso.name = "body";
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.095, 8, 8), mat(`${key}_head`, 0xf1c27d));
+    head.position.y = 0.68;
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.11, 0.06, 8), mat(`${key}_cap`, 0x1e3a8a));
+    cap.position.y = 0.78;
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.02, 8), mat(`${key}_brim`, 0x1e3a8a));
+    brim.position.y = 0.75;
+    const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.12, 3, 6), mat(`${key}_ll`, 0x1e40af));
+    const legR = legL.clone();
+    legL.position.set(-0.06, 0.13, 0);
+    legR.position.set(0.06, 0.13, 0);
+    legL.name = "legL";
+    legR.name = "legR";
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.11, 3, 6), mat(`${key}_al`, col));
+    const armR = armL.clone();
+    armL.position.set(-0.18, 0.42, 0);
+    armR.position.set(0.18, 0.42, 0);
+    armL.name = "armL";
+    armR.name = "armR";
+    g.add(torso, head, cap, brim, legL, legR, armL, armR);
     const broom = new THREE.Group();
     broom.name = "broom";
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.55, 5), mat(`${key}_stick`, BRIGHT.wood));
@@ -56,17 +65,62 @@ export function buildStaffMesh(mat: MatFn, role: StaffRole, id: string): THREE.G
     const brush = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.06), mat(`${key}_brush`, 0x92400e));
     brush.position.y = -0.1;
     broom.add(stick, brush);
-    broom.position.set(0.2, 0.2, 0.05);
+    broom.position.set(0.22, 0.18, 0.05);
     broom.rotation.z = -0.35;
     g.add(broom);
   } else if (role === "runner") {
-    // crate in both hands
-    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.2), mat(`${key}_crate`, BRIGHT.wood));
-    crate.position.set(0, 0.48, 0.18);
+    // Lean courier — smaller frame, soft hat, crate held forward
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.26, 4, 8), mat(`${key}_body`, col));
+    torso.position.y = 0.44;
+    torso.name = "body";
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), mat(`${key}_head`, 0xe8b88a));
+    head.position.y = 0.72;
+    const hat = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), mat(`${key}_hat`, 0x9a3412));
+    hat.scale.set(1, 0.45, 1);
+    hat.position.y = 0.8;
+    const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.16, 3, 6), mat(`${key}_ll`, 0xc2410c));
+    const legR = legL.clone();
+    legL.position.set(-0.045, 0.15, 0);
+    legR.position.set(0.045, 0.15, 0);
+    legL.name = "legL";
+    legR.name = "legR";
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.028, 0.13, 3, 6), mat(`${key}_al`, col));
+    const armR = armL.clone();
+    armL.position.set(-0.14, 0.48, 0.05);
+    armR.position.set(0.14, 0.48, 0.05);
+    armL.name = "armL";
+    armR.name = "armR";
+    g.add(torso, head, hat, legL, legR, armL, armR);
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.2), mat(`${key}_crate`, BRIGHT.wood));
+    crate.position.set(0, 0.5, 0.2);
     crate.name = "crate";
     g.add(crate);
   } else {
-    // pipe wrench
+    // Mechanic — taller, hard hat, tool belt, wrench
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.28, 4, 8), mat(`${key}_body`, col));
+    torso.position.y = 0.48;
+    torso.name = "body";
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), mat(`${key}_head`, 0xd4a574));
+    head.position.y = 0.78;
+    const hardhat = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), mat(`${key}_hh`, 0xfacc15));
+    hardhat.scale.set(1, 0.55, 1.05);
+    hardhat.position.y = 0.88;
+    const belt = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 4, 10), mat(`${key}_belt`, 0x44403c));
+    belt.rotation.x = Math.PI / 2;
+    belt.position.y = 0.38;
+    const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.18, 3, 6), mat(`${key}_ll`, 0x5b21b6));
+    const legR = legL.clone();
+    legL.position.set(-0.055, 0.16, 0);
+    legR.position.set(0.055, 0.16, 0);
+    legL.name = "legL";
+    legR.name = "legR";
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.032, 0.14, 3, 6), mat(`${key}_al`, col));
+    const armR = armL.clone();
+    armL.position.set(-0.17, 0.5, 0);
+    armR.position.set(0.17, 0.5, 0);
+    armL.name = "armL";
+    armR.name = "armR";
+    g.add(torso, head, hardhat, belt, legL, legR, armL, armR);
     const wrench = new THREE.Group();
     wrench.name = "wrench";
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.28, 5), mat(`${key}_wh`, 0x94a3b8));
@@ -74,9 +128,10 @@ export function buildStaffMesh(mat: MatFn, role: StaffRole, id: string): THREE.G
     const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.05), mat(`${key}_jaw`, 0xcbd5e1));
     jaw.position.set(0.16, 0, 0);
     wrench.add(handle, jaw);
-    wrench.position.set(0.22, 0.42, 0);
+    wrench.position.set(0.24, 0.48, 0);
     g.add(wrench);
   }
+
   g.userData.role = role;
   addShadow(g);
   tryApplyEntityLook(g, "staff", role, { w: 1, h: 1 });
@@ -135,50 +190,73 @@ export function animateStaff(
   }
 
   if (repairing && body && wrench) {
+    const baseY = (obj.userData.bodyBaseY as number | undefined) ?? body.position.y;
+    obj.userData.bodyBaseY = baseY;
     const t = (walkPhase % 6) / 6;
     if (t < 0.35) {
-      body.position.y = 0.42 - t * 0.4;
+      body.position.y = baseY - t * 0.4;
       wrench.rotation.z = -0.2;
     } else if (t < 0.7) {
-      body.position.y = 0.28;
+      body.position.y = baseY - 0.14;
       wrench.rotation.z = -0.2 - (t - 0.35) * 2.2;
-      wrench.position.y = 0.42 + (t - 0.35) * 0.9;
+      wrench.position.y = baseY + (t - 0.35) * 0.9;
     } else {
-      body.position.y = 0.28 + (t - 0.7) * 0.45;
+      body.position.y = baseY - 0.14 + (t - 0.7) * 0.45;
       wrench.rotation.z = -0.95 + (t - 0.7) * 2.2;
-      wrench.position.y = 0.42;
+      wrench.position.y = baseY;
     }
   } else if (body) {
-    body.position.y = 0.42;
+    const baseY = (obj.userData.bodyBaseY as number | undefined) ?? body.position.y;
+    obj.userData.bodyBaseY = baseY;
+    body.position.y = baseY;
     if (wrench) {
       wrench.rotation.z = 0;
-      wrench.position.y = 0.42;
+      wrench.position.y = baseY;
     }
   }
 }
 
 export function buildBinMesh(mat: MatFn, tier = 1): THREE.Group {
   const g = new THREE.Group();
-  const hi = isHigh(tier);
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(hi ? 0.24 : 0.18, hi ? 0.26 : 0.2, hi ? 0.5 : 0.4, 10),
-    mat("bin_body", 0x16a34a),
-  );
-  body.position.y = hi ? 0.3 : 0.25;
+  const s = stageOf(tier);
+  const r = s >= 4 ? 0.24 : s >= 3 ? 0.21 : s >= 2 ? 0.19 : 0.18;
+  const h = s >= 5 ? 0.55 : s >= 4 ? 0.5 : s >= 3 ? 0.45 : s >= 2 ? 0.42 : 0.4;
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r + 0.02, h, 10), mat("bin_body", 0x16a34a));
+  body.position.y = h / 2 + 0.05;
   const opening = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.04), mat("bin_open", 0x052e16));
-  opening.position.set(0, hi ? 0.42 : 0.35, hi ? 0.24 : 0.18);
-  const lid = new THREE.Mesh(
-    new THREE.CylinderGeometry(hi ? 0.26 : 0.2, hi ? 0.26 : 0.2, 0.05, 10),
-    mat("bin_lid", 0x15803d),
-  );
-  lid.position.y = hi ? 0.58 : 0.48;
+  opening.position.set(0, h * 0.75, r + 0.02);
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.02, r + 0.02, 0.05, 10), mat("bin_lid", 0x15803d));
+  lid.position.y = h + 0.08;
   lid.name = "lid";
   g.add(body, opening, lid);
-  if (hi) {
+  if (s >= 2) {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(r + 0.01, 0.02, 4, 12), mat("bin_band", 0x166534));
+    band.rotation.x = Math.PI / 2;
+    band.position.y = h * 0.45;
+    g.add(band);
+  }
+  if (s >= 3) {
+    const flap = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.12), mat("bin_flap", 0x14532d));
+    flap.position.set(0, h * 0.85, r + 0.06);
+    flap.name = "flap";
+    g.add(flap);
+  }
+  if (s >= 4) {
     const lid2 = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.04, 10), mat("bin_lid2", 0x166534));
-    lid2.position.y = 0.64;
+    lid2.position.y = h + 0.14;
     lid2.name = "lid2";
     g.add(lid2);
+  }
+  if (s >= 5) {
+    const wheelL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 8), mat("bin_wL", 0x334155));
+    const wheelR = wheelL.clone();
+    wheelL.rotation.z = Math.PI / 2;
+    wheelR.rotation.z = Math.PI / 2;
+    wheelL.position.set(-0.16, 0.08, 0);
+    wheelR.position.set(0.16, 0.08, 0);
+    wheelL.name = "wheelL";
+    wheelR.name = "wheelR";
+    g.add(wheelL, wheelR);
   }
   const bag = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), mat("bin_bag", 0x78716c));
   bag.position.y = 0.22;
@@ -206,12 +284,11 @@ export function animateBin(obj: THREE.Object3D, time: number, hasTrash: boolean)
 
 export function buildBenchMesh(mat: MatFn, tier = 1): THREE.Group {
   const g = new THREE.Group();
-  const hi = isHigh(tier);
-  const w = hi ? 1.05 : 0.75;
+  const s = stageOf(tier);
+  const w = s >= 5 ? 1.15 : s >= 4 ? 1.05 : s >= 3 ? 0.9 : s >= 2 ? 0.8 : 0.75;
   const seat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, 0.28), mat("bench_seat", BRIGHT.wood));
   seat.position.y = 0.28;
-  const back = new THREE.Mesh(new THREE.BoxGeometry(w, hi ? 0.4 : 0.28, 0.06), mat("bench_back", BRIGHT.wood));
-  back.position.set(0, hi ? 0.5 : 0.44, -0.12);
+  g.add(seat);
   for (const x of [-w * 0.38, w * 0.38]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.26, 0.06), mat("bench_leg", BRIGHT.metal));
     leg.position.set(x, 0.13, 0.08);
@@ -220,12 +297,30 @@ export function buildBenchMesh(mat: MatFn, tier = 1): THREE.Group {
     legB.position.z = -0.08;
     g.add(legB);
   }
-  g.add(seat, back);
-  if (hi) {
+  if (s >= 2) {
+    const back = new THREE.Mesh(new THREE.BoxGeometry(w, s >= 4 ? 0.4 : 0.28, 0.06), mat("bench_back", BRIGHT.wood));
+    back.position.set(0, s >= 4 ? 0.5 : 0.44, -0.12);
+    back.name = "back";
+    g.add(back);
+  }
+  if (s >= 3) {
+    for (const x of [-w * 0.42, w * 0.42]) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.22), mat("bench_arm", BRIGHT.metal));
+      arm.position.set(x, 0.4, 0);
+      g.add(arm);
+    }
+  }
+  if (s >= 4) {
     const cloth = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, 0.2), mat("bench_cloth", 0xfca5a5));
     cloth.position.set(0, 0.55, -0.1);
     cloth.name = "cloth";
     g.add(cloth);
+  }
+  if (s >= 5) {
+    const planter = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.18, 6), mat("bench_planter", 0x65a30d));
+    planter.position.set(w * 0.55, 0.2, 0);
+    planter.name = "planter";
+    g.add(planter);
   }
   addShadow(g);
   tryApplyEntityLook(g, "prop", "bench");
@@ -392,27 +487,51 @@ export function animateDecor(obj: THREE.Object3D, time: number): void {
 
 export function buildWarehouseMesh(mat: MatFn, tier = 1): THREE.Group {
   const g = new THREE.Group();
-  const hi = isHigh(tier);
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(hi ? 1.7 : 1.4, 1.15, hi ? 1.5 : 1.4),
-    mat("wh_body", 0xa8a29e),
+  const s = stageOf(tier);
+  const bw = s >= 5 ? 1.85 : s >= 4 ? 1.7 : s >= 3 ? 1.55 : s >= 2 ? 1.45 : 1.4;
+  const bd = s >= 5 ? 1.6 : s >= 4 ? 1.5 : 1.4;
+  const bh = s >= 3 ? 1.25 : 1.15;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat("wh_body", 0xa8a29e));
+  body.position.y = bh / 2 + 0.05;
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(bw + 0.15, 0.12, bd + 0.15),
+    mat("wh_roof", 0x78716c),
   );
-  body.position.y = 0.58;
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(hi ? 1.85 : 1.5, 0.12, hi ? 1.65 : 1.5), mat("wh_roof", 0x78716c));
-  roof.position.y = 1.2;
+  roof.position.y = bh + 0.12;
   const door = new THREE.Mesh(
-    new THREE.BoxGeometry(hi ? 0.75 : 0.55, 0.75, 0.06),
+    new THREE.BoxGeometry(s >= 4 ? 0.75 : 0.55, 0.75, 0.06),
     mat("wh_door", 0x57534e),
   );
-  door.position.set(0, 0.42, hi ? 0.78 : 0.72);
+  door.position.set(0, 0.42, bd / 2 + 0.02);
   door.name = "door";
-  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.55, 0.12), mat("wh_shelf", BRIGHT.wood));
-  shelf.position.set(-0.4, 0.55, hi ? 0.7 : 0.65);
-  g.add(body, roof, door, shelf);
-  if (hi) {
+  g.add(body, roof, door);
+  if (s >= 2) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.55, 0.12), mat("wh_shelf", BRIGHT.wood));
+    shelf.position.set(-0.4, 0.55, bd / 2 - 0.05);
+    shelf.name = "shelf";
+    g.add(shelf);
+  }
+  if (s >= 3) {
+    const ramp = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.45), mat("wh_ramp", BRIGHT.wood));
+    ramp.position.set(0, 0.12, bd / 2 + 0.28);
+    ramp.rotation.x = -0.25;
+    ramp.name = "ramp";
+    g.add(ramp);
+  }
+  if (s >= 4) {
     const wing = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 1.0), mat("wh_wing", 0xa8a29e));
-    wing.position.set(1.1, 0.5, 0);
+    wing.position.set(bw / 2 + 0.35, 0.5, 0);
+    wing.name = "wing";
     g.add(wing);
+  }
+  if (s >= 5) {
+    const sky = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.5), mat("wh_sky", 0x7dd3fc));
+    sky.position.set(0.2, bh + 0.2, 0);
+    sky.name = "skylight";
+    const door2 = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.05), mat("wh_door2", 0x57534e));
+    door2.position.set(bw / 2 + 0.35, 0.4, 0.52);
+    door2.name = "door2";
+    g.add(sky, door2);
   }
   addShadow(g);
   tryApplyEntityLook(g, "prop", "warehouse");

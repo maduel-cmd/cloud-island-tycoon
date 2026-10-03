@@ -95,8 +95,17 @@ function pushCycle(g: THREE.Group, c: Cycle): void {
   g.userData.cycles = list;
 }
 
+function stageOf(tier: number): number {
+  return Math.max(1, Math.min(5, Math.floor(tier) || 1));
+}
+
+/** Stages 4–5 share the “high body” family; stage 5 must still add more than 4. */
 function high(tier: number): boolean {
-  return tier >= 4;
+  return stageOf(tier) >= 4;
+}
+
+function peak(tier: number): boolean {
+  return stageOf(tier) >= 5;
 }
 
 function trackPoints(kind: "hill" | "hill2" | "loop" | "loop2" | "launch" | "launch2" | "mouse" | "mouse2"): THREE.Vector3[] {
@@ -160,30 +169,88 @@ function buildTrackRails(g: THREE.Group, mat: MatFn, key: string, color: number,
   }
 }
 
-function openCar(mat: MatFn, key: string, accent: number, lit: boolean): THREE.Mesh {
-  return new THREE.Mesh(
-    new THREE.BoxGeometry(0.28, 0.14, 0.2),
-    lit ? emissiveAccent(mat, `${key}_car`, accent, 0.55) : mat(`${key}_car`, accent),
-  );
-}
-
-function closedCar(mat: MatFn, key: string, accent: number, lit: boolean): THREE.Group {
+/** Sky coaster — open bench train (not a plain box). */
+function skyTrain(mat: MatFn, key: string, accent: number, lit: boolean, fancy: boolean): THREE.Group {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.16, 0.2),
+  const bench = new THREE.Mesh(
+    new THREE.BoxGeometry(fancy ? 0.42 : 0.32, 0.08, 0.2),
     lit ? emissiveAccent(mat, `${key}_car`, accent, 0.55) : mat(`${key}_car`, accent),
   );
-  const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.18), mat(`${key}_can`, 0x334155));
-  canopy.position.y = 0.12;
-  g.add(body, canopy);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(fancy ? 0.42 : 0.32, 0.14, 0.04), mat(`${key}_back`, BRIGHT.metal));
+  back.position.set(0, 0.1, -0.08);
+  g.add(bench, back);
+  if (fancy) {
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.16, 5), mat(`${key}_nose`, accent));
+    nose.rotation.z = -Math.PI / 2;
+    nose.position.set(0.28, 0.04, 0);
+    g.add(nose);
+  }
   return g;
 }
 
-function smallCar(mat: MatFn, key: string, accent: number, lit: boolean): THREE.Mesh {
-  return new THREE.Mesh(
-    new THREE.BoxGeometry(0.18, 0.12, 0.14),
+/** Inverted — seats hang under a yoke (car under the rail). */
+function hangCar(mat: MatFn, key: string, accent: number, lit: boolean, fancy: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const yoke = new THREE.Mesh(new THREE.BoxGeometry(fancy ? 0.38 : 0.28, 0.05, 0.08), mat(`${key}_yoke`, BRIGHT.metal));
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, fancy ? 0.28 : 0.2, 5), mat(`${key}_stem`, BRIGHT.metal));
+  stem.position.y = fancy ? -0.14 : -0.1;
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(fancy ? 0.34 : 0.24, 0.08, 0.16),
+    lit ? emissiveAccent(mat, `${key}_car`, accent, 0.55) : mat(`${key}_car`, accent),
+  );
+  seat.position.y = fancy ? -0.28 : -0.22;
+  g.add(yoke, stem, seat);
+  if (fancy) {
+    const harness = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.015, 4, 10), mat(`${key}_har`, 0x64748b));
+    harness.position.y = -0.22;
+    harness.rotation.x = Math.PI / 2;
+    g.add(harness);
+  }
+  return g;
+}
+
+/** Launch — pointed bullet sled with side boosters. */
+function launchSled(mat: MatFn, key: string, accent: number, lit: boolean, fancy: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.09, fancy ? 0.32 : 0.22, 4, 8),
+    lit ? emissiveAccent(mat, `${key}_car`, accent, 0.55) : mat(`${key}_car`, accent),
+  );
+  body.rotation.z = Math.PI / 2;
+  g.add(body);
+  for (const z of [-1, 1]) {
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.08), mat(`${key}_fin${z}`, BRIGHT.metal));
+    fin.position.set(-0.12, 0, z * 0.1);
+    g.add(fin);
+  }
+  if (fancy) {
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 6), mat(`${key}_tip`, accent));
+    tip.rotation.z = -Math.PI / 2;
+    tip.position.set(0.28, 0, 0);
+    g.add(tip);
+  }
+  return g;
+}
+
+/** Wild mouse — tiny round tub car (not a box). */
+function mouseTub(mat: MatFn, key: string, accent: number, lit: boolean, fancy: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const tub = new THREE.Mesh(
+    new THREE.CylinderGeometry(fancy ? 0.12 : 0.1, fancy ? 0.14 : 0.11, 0.12, 8),
     lit ? emissiveAccent(mat, `${key}_car`, accent, 0.5) : mat(`${key}_car`, accent),
   );
+  const earL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), mat(`${key}_earL`, accent));
+  const earR = earL.clone();
+  earL.position.set(-0.08, 0.1, 0.04);
+  earR.position.set(0.08, 0.1, 0.04);
+  g.add(tub, earL, earR);
+  if (fancy) {
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.015, 4, 8), mat(`${key}_wh`, BRIGHT.metal));
+    wheel.rotation.y = Math.PI / 2;
+    wheel.position.set(0, -0.04, 0.1);
+    g.add(wheel);
+  }
+  return g;
 }
 
 // ——— Coasters ———
@@ -200,13 +267,18 @@ function buildCoasterRide(
 ): THREE.Group {
   const g = new THREE.Group();
   const isHigh = high(tier);
+  const isPeak = peak(tier);
   if (tier >= 2) stoneBase(g, mat, key, fw, fh, ISO_TILE);
 
   if (id === "sky_coaster") {
     const pts = trackPoints(isHigh ? "hill2" : "hill");
-    for (const x of isHigh ? [-0.9, -0.3, 0.3, 0.9] : [-0.7, 0.7]) {
-      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, isHigh ? 1.2 : 0.95, 6), mat(`${key}_pil`, BRIGHT.metal));
-      p.position.set(x, isHigh ? 0.7 : 0.55, 0);
+    const pillars = isPeak ? [-1.0, -0.5, 0, 0.5, 1.0] : isHigh ? [-0.9, -0.3, 0.3, 0.9] : [-0.7, 0.7];
+    for (const x of pillars) {
+      const p = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.1, isPeak ? 1.35 : isHigh ? 1.2 : 0.95, 6),
+        mat(`${key}_pil`, BRIGHT.metal),
+      );
+      p.position.set(x, isPeak ? 0.8 : isHigh ? 0.7 : 0.55, 0);
       g.add(p);
     }
     buildTrackRails(g, mat, key, color, pts, isHigh);
@@ -215,12 +287,19 @@ function buildCoasterRide(
       crest.position.set(0, isHigh ? 2.2 : 1.85, 0);
       g.add(crest);
     }
-    const car = openCar(mat, key, accent, tier >= 4);
+    if (isPeak) {
+      const banner = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.18), mat(`${key}_ban`, accent));
+      banner.position.set(0, 2.45, 0.1);
+      g.add(banner);
+    }
+    const car = skyTrain(mat, key, accent, tier >= 4, isPeak);
     car.position.copy(pts[0]!);
     g.add(car);
     pushCycle(g, { type: "track", obj: car, points: pts, speed: 0.5, t: 0 });
   } else if (id === "inverted_coaster") {
     const pts = trackPoints(isHigh ? "loop2" : "loop");
+    // Hang path sits under the rail
+    const hangPts = pts.map((p) => new THREE.Vector3(p.x, p.y - (isPeak ? 0.28 : 0.22), p.z));
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(isHigh ? 0.75 : 0.65, 0.055, 6, 24),
       mat(`${key}_loop`, color, { metalness: 0.4 }),
@@ -242,18 +321,20 @@ function buildCoasterRide(
       hang.position.set(0, 1.95, 0);
       g.add(hang);
     }
-    const car = closedCar(mat, key, accent, tier >= 4);
-    car.position.copy(pts[0]!);
-    // hang under track
-    car.position.y -= 0.12;
+    if (isPeak) {
+      const spine = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.4), mat(`${key}_spine`, BRIGHT.metal));
+      spine.position.set(0, 1.95, 0);
+      g.add(spine);
+    }
+    const car = hangCar(mat, key, accent, tier >= 4, isPeak);
+    car.position.copy(hangPts[0]!);
     g.add(car);
-    pushCycle(g, { type: "track", obj: car, points: pts, speed: 0.55, t: 0 });
+    pushCycle(g, { type: "track", obj: car, points: hangPts, speed: 0.55, t: 0 });
   } else if (id === "launch_coaster") {
     const pts = trackPoints(isHigh ? "launch2" : "launch");
     const ramp = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 0.32), mat(`${key}_ramp`, BRIGHT.metal));
     ramp.position.set(0, 0.75, 0);
     g.add(ramp);
-    // brake tower
     const tower = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.1, 0.22), mat(`${key}_brake`, color));
     tower.position.set(0.95, 1.15, 0);
     g.add(tower);
@@ -268,7 +349,7 @@ function buildCoasterRide(
       nozzle.position.set(-1.05, 0.85, 0);
       g.add(nozzle);
     }
-    const car = openCar(mat, key, accent, tier >= 4);
+    const car = launchSled(mat, key, accent, tier >= 4, isPeak);
     car.position.copy(pts[0]!);
     g.add(car);
     pushCycle(g, { type: "track", obj: car, points: pts, speed: 0.9, t: 0 });
@@ -278,12 +359,21 @@ function buildCoasterRide(
       g.add(flash);
       pushCycle(g, { type: "flash", light: flash, period: 0.5 });
     }
+    if (isPeak) {
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.4), mat(`${key}_pad`, BRIGHT.metal));
+      pad.position.set(-1.1, 0.72, 0);
+      g.add(pad);
+    }
   } else {
-    // wild_mouse
+    // wild_mouse — wooden trestle + mouse tub
     const pts = trackPoints(isHigh ? "mouse2" : "mouse");
-    for (let i = 0; i < (isHigh ? 6 : 4); i++) {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, isHigh ? 0.7 : 0.5, 0.08), mat(`${key}_m${i}`, BRIGHT.wood));
-      p.position.set(-0.55 + i * 0.25, isHigh ? 0.5 : 0.4, (i % 2) * 0.28 - 0.12);
+    const posts = isPeak ? 8 : isHigh ? 6 : 4;
+    for (let i = 0; i < posts; i++) {
+      const p = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, isPeak ? 0.85 : isHigh ? 0.7 : 0.5, 0.08),
+        mat(`${key}_m${i}`, BRIGHT.wood),
+      );
+      p.position.set(-0.55 + i * (1.2 / Math.max(1, posts - 1)), isPeak ? 0.55 : isHigh ? 0.5 : 0.4, (i % 2) * 0.28 - 0.12);
       g.add(p);
     }
     buildTrackRails(g, mat, key, color, pts, false);
@@ -292,7 +382,12 @@ function buildCoasterRide(
       mouse.position.set(0.65, isHigh ? 1.35 : 1.05, 0);
       g.add(mouse);
     }
-    const car = smallCar(mat, key, accent, tier >= 4);
+    if (isPeak) {
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.16), mat(`${key}_sign`, accent));
+      sign.position.set(-0.55, 1.15, 0.2);
+      g.add(sign);
+    }
+    const car = mouseTub(mat, key, accent, tier >= 4, isPeak);
     car.position.copy(pts[0]!);
     g.add(car);
     pushCycle(g, { type: "track", obj: car, points: pts, speed: 0.75, t: 0 });
@@ -314,12 +409,22 @@ function buildFerris(
 ): THREE.Group {
   const g = new THREE.Group();
   const isHigh = high(tier);
+  const isPeak = peak(tier);
   if (tier >= 2) stoneBase(g, mat, key, fw, fh, ISO_TILE);
 
   if (!enterprise) {
+    // Classic upright ferris — cabins hang on a vertical wheel
     const stand = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.6, 0.2), mat(`${key}_stand`, BRIGHT.metal));
     stand.position.y = 1.0;
-    g.add(stand);
+    const standR = stand.clone();
+    standR.position.z = 0.35;
+    g.add(stand, standR);
+    if (tier >= 3) {
+      const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), mat(`${key}_ax`, BRIGHT.metal));
+      axle.rotation.x = Math.PI / 2;
+      axle.position.set(0, 1.55, 0.18);
+      g.add(axle);
+    }
     if (isHigh) {
       const station = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.55, 0.7), mat(`${key}_st`, BRIGHT.wood));
       station.position.set(0, 0.55, 0.55);
@@ -328,10 +433,15 @@ function buildFerris(
       roof.rotation.y = Math.PI / 4;
       g.add(station, roof);
     }
+    if (isPeak) {
+      const ticket = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.3), mat(`${key}_tix`, accent));
+      ticket.position.set(-0.7, 0.4, 0.55);
+      g.add(ticket);
+    }
     const rim = new THREE.Group();
     rim.position.y = 1.55;
     const hoop = new THREE.Mesh(
-      new THREE.TorusGeometry(isHigh ? 1.05 : 0.9, 0.05, 6, 28),
+      new THREE.TorusGeometry(isPeak ? 1.15 : isHigh ? 1.05 : 0.9, 0.05, 6, 28),
       tier >= 4 ? emissiveAccent(mat, `${key}_rim`, color, 0.45) : mat(`${key}_rim`, color, { metalness: 0.35 }),
     );
     hoop.rotation.y = Math.PI / 2;
@@ -342,7 +452,8 @@ function buildFerris(
       rim.add(hoop2);
     }
     const cabins: THREE.Object3D[] = [];
-    const n = isHigh ? 10 : 8;
+    const n = isPeak ? 12 : isHigh ? 10 : 8;
+    const R = isPeak ? 1.15 : isHigh ? 1.05 : 0.9;
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * Math.PI * 2;
       const cabin = new THREE.Group();
@@ -350,40 +461,63 @@ function buildFerris(
       const lid = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 0.16), mat(`${key}_lid${i}`, 0x64748b));
       lid.position.y = 0.12;
       cabin.add(box, lid);
-      cabin.position.set(0, Math.sin(ang) * (isHigh ? 1.05 : 0.9), Math.cos(ang) * (isHigh ? 1.05 : 0.9));
+      cabin.position.set(0, Math.sin(ang) * R, Math.cos(ang) * R);
       rim.add(cabin);
       cabins.push(cabin);
     }
     g.add(rim);
     pushCycle(g, { type: "wheel", rim, cabins, speed: 0.35, levelCabins: true });
   } else {
+    // Enterprise — tilted spinning arm + gondola ring (not an upright ferris)
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 0.25, 10), mat(`${key}_base`, BRIGHT.metal));
+    base.position.y = 0.25;
+    g.add(base);
+    if (tier >= 3) {
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.2), mat(`${key}_cw`, BRIGHT.stoneDark));
+      counter.position.set(-0.55, 0.35, 0);
+      g.add(counter);
+    }
     const pivot = new THREE.Group();
-    pivot.position.y = isHigh ? 0.85 : 0.7;
-    const armLen = isHigh ? 1.35 : 1.0;
+    pivot.position.y = isPeak ? 0.95 : isHigh ? 0.85 : 0.7;
+    const armLen = isPeak ? 1.5 : isHigh ? 1.35 : 1.0;
     const arm = new THREE.Mesh(new THREE.BoxGeometry(0.14, armLen, 0.14), mat(`${key}_arm`, BRIGHT.metal));
     arm.position.y = armLen / 2;
     pivot.add(arm);
     const rim = new THREE.Group();
     rim.position.y = armLen;
-    const hoopR = isHigh ? 0.85 : 0.65;
+    const hoopR = isPeak ? 0.95 : isHigh ? 0.85 : 0.65;
     const hoop = new THREE.Mesh(
       new THREE.TorusGeometry(hoopR, 0.05, 6, 24),
       tier >= 4 ? emissiveAccent(mat, `${key}_rim`, color, 0.5) : mat(`${key}_rim`, color),
     );
     hoop.rotation.y = Math.PI / 2;
     rim.add(hoop);
-    const n = isHigh ? 10 : 8;
+    const n = isPeak ? 12 : isHigh ? 10 : 8;
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * Math.PI * 2;
       const seat = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.2), mat(`${key}_seat${i}`, accent));
       seat.position.set(Math.sin(ang) * hoopR, Math.cos(ang) * hoopR * 0.15, Math.cos(ang) * hoopR);
       rim.add(seat);
     }
+    if (isPeak) {
+      const hub = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), emissiveAccent(mat, `${key}_hub`, accent, 0.7));
+      rim.add(hub);
+      const fence = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 6, 16), mat(`${key}_fence`, BRIGHT.metal));
+      fence.rotation.x = Math.PI / 2;
+      fence.position.y = 0.2;
+      g.add(fence);
+    }
     pivot.add(rim);
-    // tilt outward
     pivot.rotation.z = 0.55;
     g.add(pivot);
-    pushCycle(g, { type: "enterprise", arm: pivot, rim, speed: 0.7, liftAmp: isHigh ? 0.35 : 0.22, baseY: pivot.position.y });
+    pushCycle(g, {
+      type: "enterprise",
+      arm: pivot,
+      rim,
+      speed: 0.7,
+      liftAmp: isPeak ? 0.42 : isHigh ? 0.35 : 0.22,
+      baseY: pivot.position.y,
+    });
   }
   return g;
 }
@@ -402,17 +536,38 @@ function buildCarouselRide(
 ): THREE.Group {
   const g = new THREE.Group();
   const isHigh = high(tier);
+  const isPeak = peak(tier);
   if (tier >= 2) stoneBase(g, mat, key, fw, fh, ISO_TILE);
   const baseY = tier >= 2 ? 0.4 : 0.18;
 
   if (!wave) {
-    const platform = new THREE.Mesh(new THREE.CylinderGeometry(isHigh ? 0.95 : 0.75, isHigh ? 1.0 : 0.8, 0.12, 16), mat(`${key}_plat`, BRIGHT.wood));
+    const platform = new THREE.Mesh(
+      new THREE.CylinderGeometry(isPeak ? 1.05 : isHigh ? 0.95 : 0.75, isPeak ? 1.1 : isHigh ? 1.0 : 0.8, 0.12, 16),
+      mat(`${key}_plat`, BRIGHT.wood),
+    );
     platform.position.y = baseY;
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, isHigh ? 1.6 : 1.3, 8), mat(`${key}_pole`, BRIGHT.metal));
-    pole.position.y = baseY + (isHigh ? 0.9 : 0.75);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(isHigh ? 1.15 : 0.9, isHigh ? 0.55 : 0.45, 8), mat(`${key}_roof`, color));
-    roof.position.y = baseY + (isHigh ? 1.75 : 1.45);
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.08, isPeak ? 1.75 : isHigh ? 1.6 : 1.3, 8),
+      mat(`${key}_pole`, BRIGHT.metal),
+    );
+    pole.position.y = baseY + (isPeak ? 1.0 : isHigh ? 0.9 : 0.75);
+    const roof = new THREE.Mesh(
+      new THREE.ConeGeometry(isPeak ? 1.25 : isHigh ? 1.15 : 0.9, isPeak ? 0.6 : isHigh ? 0.55 : 0.45, 8),
+      mat(`${key}_roof`, color),
+    );
+    roof.position.y = baseY + (isPeak ? 1.95 : isHigh ? 1.75 : 1.45);
     g.add(platform, pole, roof);
+    if (tier >= 3) {
+      const trim = new THREE.Mesh(new THREE.TorusGeometry(isHigh ? 0.85 : 0.7, 0.03, 6, 16), mat(`${key}_trim`, accent));
+      trim.rotation.x = Math.PI / 2;
+      trim.position.y = roof.position.y - 0.15;
+      g.add(trim);
+    }
+    if (isPeak) {
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), emissiveAccent(mat, `${key}_fin`, accent, 0.7));
+      finial.position.y = roof.position.y + 0.35;
+      g.add(finial);
+    }
     const spin = new THREE.Group();
     spin.position.y = baseY + 0.15;
     const horses: THREE.Object3D[] = [];
@@ -435,17 +590,31 @@ function buildCarouselRide(
     g.add(spin);
     pushCycle(g, { type: "carousel", spin, horses, speed: 0.85, bobAmp: 0.12 });
   } else {
-    const poleH = isHigh ? 2.0 : 1.55;
+    const poleH = isPeak ? 2.2 : isHigh ? 2.0 : 1.55;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, poleH, 8), mat(`${key}_pole`, BRIGHT.metal));
     pole.position.y = baseY + poleH / 2;
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(isHigh ? 0.55 : 0.4, isHigh ? 0.55 : 0.4, 0.1, 12), mat(`${key}_top`, color));
+    const top = new THREE.Mesh(
+      new THREE.CylinderGeometry(isPeak ? 0.6 : isHigh ? 0.55 : 0.4, isPeak ? 0.6 : isHigh ? 0.55 : 0.4, 0.1, 12),
+      mat(`${key}_top`, color),
+    );
     top.position.y = baseY + poleH;
     g.add(pole, top);
+    if (tier >= 3) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.03, 6, 14), mat(`${key}_ring`, accent));
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = baseY + poleH * 0.55;
+      g.add(ring);
+    }
+    if (isPeak) {
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.22, 6), mat(`${key}_tip`, accent));
+      tip.position.y = baseY + poleH + 0.18;
+      g.add(tip);
+    }
     const spin = new THREE.Group();
     spin.position.y = baseY + poleH - 0.15;
     const chairs: THREE.Object3D[] = [];
-    const n = isHigh ? 10 : 8;
-    const chainLen = isHigh ? 0.85 : 0.55;
+    const n = isPeak ? 12 : isHigh ? 10 : 8;
+    const chainLen = isPeak ? 0.95 : isHigh ? 0.85 : 0.55;
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * Math.PI * 2;
       const chair = new THREE.Group();
@@ -459,7 +628,7 @@ function buildCarouselRide(
       chairs.push(chair);
     }
     g.add(spin);
-    pushCycle(g, { type: "swinger", spin, chairs, speed: 0.95, flare: isHigh ? 0.35 : 0.18 });
+    pushCycle(g, { type: "swinger", spin, chairs, speed: 0.95, flare: isPeak ? 0.4 : isHigh ? 0.35 : 0.18 });
   }
   return g;
 }
@@ -478,34 +647,57 @@ function buildTowerRide(
 ): THREE.Group {
   const g = new THREE.Group();
   const isHigh = high(tier);
+  const isPeak = peak(tier);
   if (tier >= 2) stoneBase(g, mat, key, fw, fh, ISO_TILE);
 
   if (!space) {
-    const h = isHigh ? 2.6 : 2.0;
+    // Drop tower — square stone shaft + cage car
+    const h = isPeak ? 3.0 : isHigh ? 2.6 : 2.0;
     const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.35, h, 0.35), mat(`${key}_stone`, BRIGHT.stone));
     shaft.position.y = h / 2 + 0.25;
     const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, h, 0.08), mat(`${key}_rail`, BRIGHT.metal));
     rail.position.set(0.22, h / 2 + 0.25, 0);
     g.add(shaft, rail);
+    if (tier >= 3) {
+      const win = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, 0.04), mat(`${key}_win`, 0x7dd3fc));
+      win.position.set(0, h * 0.4, 0.2);
+      g.add(win);
+    }
     if (isHigh) {
       const balc = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.7), mat(`${key}_balc`, BRIGHT.stoneDark));
       balc.position.y = h * 0.55;
       g.add(balc);
     }
-    const car = new THREE.Mesh(
-      new THREE.BoxGeometry(0.55, 0.22, 0.55),
+    if (isPeak) {
+      const crown = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.5), mat(`${key}_crown`, accent));
+      crown.position.y = h + 0.35;
+      g.add(crown);
+    }
+    const car = new THREE.Group();
+    const cage = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.28, 0.55),
       tier >= 4 ? emissiveAccent(mat, `${key}_car`, accent, 0.55) : mat(`${key}_car`, accent),
     );
+    const bars = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.04), mat(`${key}_bars`, BRIGHT.metal));
+    bars.position.set(0, 0.08, 0.28);
+    car.add(cage, bars);
     car.position.y = 0.55;
     g.add(car);
     pushCycle(g, { type: "climbDrop", car, low: 0.55, high: h + 0.15, climb: 0.35, fall: 2.2, phase: 0, pause: 0.4 });
   } else {
-    const h = isHigh ? 2.8 : 2.2;
+    // Space shot — round rocket column + cone cabin (not a square shaft)
+    const h = isPeak ? 3.2 : isHigh ? 2.8 : 2.2;
     const col = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, h, 8), mat(`${key}_col`, color));
     col.position.y = h / 2 + 0.2;
     const nose = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.35, 8), mat(`${key}_nose`, accent));
     nose.position.y = h + 0.35;
     g.add(col, nose);
+    if (tier >= 3) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.03, 6, 12), mat(`${key}_ring`, BRIGHT.metal));
+      ring.position.y = h * 0.45;
+      ring.rotation.x = Math.PI / 2;
+      g.add(ring);
+    }
     if (isHigh) {
       for (const z of [-1, 1]) {
         const fin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.35, 0.22), mat(`${key}_fin${z}`, accent));
@@ -515,6 +707,13 @@ function buildTowerRide(
       const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 0.1, 10), mat(`${key}_pad`, BRIGHT.metal));
       pad.position.y = 0.3;
       g.add(pad);
+    }
+    if (isPeak) {
+      const plume = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 6), emissiveAccent(mat, `${key}_plume`, 0xf97316, 0.9));
+      plume.position.y = 0.2;
+      plume.rotation.x = Math.PI;
+      g.add(plume);
+      pushCycle(g, { type: "blink", obj: plume, period: 0.35 });
     }
     const rocket = new THREE.Mesh(
       new THREE.ConeGeometry(0.16, 0.45, 8),
@@ -560,10 +759,13 @@ function buildShipRide(
   const sail = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.55), mat(`${key}_sail`, color));
   sail.position.set(0, -0.15, 0.05);
   swing.add(hull, sail);
-  if (tier >= 3 || isHigh) {
+  if (tier >= 3) {
     const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 5), mat(`${key}_mast`, BRIGHT.wood));
     mast.position.set(0, -0.1, 0);
     swing.add(mast);
+    const dock = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.45), mat(`${key}_dock`, BRIGHT.wood));
+    dock.position.set(0, 0.25, 0.45);
+    g.add(dock);
   }
   if (isHigh) {
     const deck2 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.35), mat(`${key}_deck2`, BRIGHT.wood));
@@ -577,6 +779,16 @@ function buildShipRide(
     const light = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), emissiveAccent(mat, `${key}_lite`, accent, 0.8));
     light.position.set(0, 0.15, 0);
     swing.add(light);
+  }
+  if (peak(tier)) {
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.22), mat(`${key}_flag`, accent));
+    flag.position.set(0, 0.45, 0.05);
+    swing.add(flag);
+    pushCycle(g, { type: "flag", obj: flag, amp: 0.35, speed: 2.2 });
+    const gangway = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.06, 0.55), mat(`${key}_gang`, BRIGHT.wood));
+    gangway.position.set(0.55, 0.2, 0.2);
+    gangway.rotation.z = -0.2;
+    g.add(gangway);
   }
   g.add(frame, swing);
   pushCycle(g, { type: "ship", swing, amp: 0.85, speed: 1.1 });
@@ -594,20 +806,32 @@ function buildTeacups(
 ): THREE.Group {
   const g = new THREE.Group();
   const isHigh = high(tier);
+  const isPeak = peak(tier);
   if (tier >= 2) stoneBase(g, mat, key, fw, fh, ISO_TILE);
-  const discR = isHigh ? 0.95 : 0.7;
+  const discR = isPeak ? 1.05 : isHigh ? 0.95 : 0.7;
   const disc = new THREE.Mesh(new THREE.CylinderGeometry(discR, discR, 0.1, 16), mat(`${key}_disc`, color));
   disc.position.y = tier >= 2 ? 0.4 : 0.2;
   g.add(disc);
+  if (tier >= 3) {
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.22, 10), mat(`${key}_pot`, accent));
+    pot.position.y = disc.position.y + 0.18;
+    g.add(pot);
+  }
+  if (isPeak) {
+    const spout = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.025, 6, 10, Math.PI), mat(`${key}_spout`, BRIGHT.metal));
+    spout.position.set(0.16, disc.position.y + 0.22, 0);
+    spout.rotation.y = Math.PI / 2;
+    g.add(spout);
+  }
   const cups: THREE.Object3D[] = [];
   const colors = [0xef4444, 0x3b82f6, 0x22c55e, 0xfacc15, 0xa855f7, 0xf97316, 0x06b6d4, 0xec4899];
-  const n = isHigh ? 8 : 4;
+  const n = isPeak ? 10 : isHigh ? 8 : 4;
   for (let i = 0; i < n; i++) {
     const ang = (i / n) * Math.PI * 2;
     const cup = new THREE.Group();
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(0.14, 0.12, 0.16, 10),
-      tier >= 4 ? emissiveAccent(mat, `${key}_cup${i}`, colors[i]!, 0.4) : mat(`${key}_cup${i}`, colors[i]!),
+      tier >= 4 ? emissiveAccent(mat, `${key}_cup${i}`, colors[i % colors.length]!, 0.4) : mat(`${key}_cup${i}`, colors[i % colors.length]!),
     );
     const handle = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.02, 6, 10, Math.PI), mat(`${key}_h${i}`, accent));
     handle.position.set(0.14, 0, 0);
@@ -635,22 +859,34 @@ function buildWaterRide(
 ): THREE.Group {
   const g = new THREE.Group();
   const isHigh = high(tier);
+  const isPeak = peak(tier);
   if (tier >= 2) stoneBase(g, mat, key, fw, fh, ISO_TILE);
   const baseY = tier >= 2 ? 0.35 : 0.15;
 
   if (id === "swan_lake") {
     const pool = new THREE.Mesh(
-      new THREE.CylinderGeometry(isHigh ? 0.95 : 0.7, isHigh ? 1.0 : 0.75, 0.2, 16),
+      new THREE.CylinderGeometry(isPeak ? 1.05 : isHigh ? 0.95 : 0.7, isPeak ? 1.1 : isHigh ? 1.0 : 0.75, 0.2, 16),
       mat(`${key}_pool`, BRIGHT.water, { transparent: true, opacity: 0.75 }),
     );
     pool.position.y = baseY;
     const fountain = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 6), mat(`${key}_fount`, 0xe0f2fe));
     fountain.position.y = baseY + 0.35;
     g.add(pool, fountain);
+    if (tier >= 3) {
+      const lily = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.02, 8), mat(`${key}_lily`, 0x86efac));
+      lily.position.set(0.35, baseY + 0.12, 0.2);
+      g.add(lily);
+    }
     if (isHigh) {
       const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.2), mat(`${key}_br`, BRIGHT.wood));
       bridge.position.set(0, baseY + 0.2, 0.55);
       g.add(bridge);
+    }
+    if (isPeak) {
+      const lantern = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), emissiveAccent(mat, `${key}_lan`, accent, 0.75));
+      lantern.position.set(0, baseY + 0.55, 0.55);
+      g.add(lantern);
+      pushCycle(g, { type: "blink", obj: lantern, period: 0.9 });
     }
     for (let i = 0; i < 2; i++) {
       const swan = new THREE.Group();
@@ -668,11 +904,24 @@ function buildWaterRide(
     chute.position.set(0, baseY + 0.55, 0);
     chute.rotation.z = isHigh ? -0.25 : -0.35;
     g.add(chute);
+    if (tier >= 3) {
+      const splash = new THREE.Mesh(
+        new THREE.BoxGeometry(0.25, 0.2, 0.2),
+        mat(`${key}_splash`, BRIGHT.water, { transparent: true, opacity: 0.65 }),
+      );
+      splash.position.set(0.55, baseY + 0.35, 0);
+      g.add(splash);
+    }
     if (isHigh) {
       const up = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.3), mat(`${key}_up`, BRIGHT.wood));
       up.position.set(-0.7, baseY + 0.35, 0.25);
       up.rotation.z = 0.4;
       g.add(up);
+    }
+    if (isPeak) {
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.7, 0.25), mat(`${key}_tw`, BRIGHT.wood));
+      tower.position.set(-0.95, baseY + 0.55, 0.25);
+      g.add(tower);
     }
     const logs = isHigh ? 2 : 1;
     for (let i = 0; i < logs; i++) {
@@ -706,10 +955,20 @@ function buildWaterRide(
       rock.position.set(-0.4 + i * 0.25, baseY + 0.28, (i % 2) * 0.2 - 0.1);
       g.add(rock);
     }
+    if (tier >= 3) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 0.06), mat(`${key}_rail`, BRIGHT.metal));
+      rail.position.set(0, baseY + 0.35, 0.35);
+      g.add(rail);
+    }
     if (isHigh) {
       const fall = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.2), mat(`${key}_fall`, BRIGHT.water, { transparent: true, opacity: 0.7 }));
       fall.position.set(0.55, baseY + 0.4, 0);
       g.add(fall);
+    }
+    if (isPeak) {
+      const spray = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 6), mat(`${key}_spray`, 0xe0f2fe, { transparent: true, opacity: 0.6 }));
+      spray.position.set(0.55, baseY + 0.7, 0);
+      g.add(spray);
     }
     const boat = new THREE.Mesh(
       new THREE.BoxGeometry(0.35, 0.12, 0.22),
@@ -730,10 +989,20 @@ function buildWaterRide(
     slide.position.set(-0.35, baseY + 0.55, 0);
     slide.rotation.z = -0.45;
     g.add(pool, slide);
+    if (tier >= 3) {
+      const stair = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.35, 0.2), mat(`${key}_stair`, BRIGHT.wood));
+      stair.position.set(-0.65, baseY + 0.35, 0.2);
+      g.add(stair);
+    }
     if (isHigh) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.7), mat(`${key}_wall`, 0xbae6fd, { transparent: true, opacity: 0.65 }));
       wall.position.set(0.55, baseY + 0.55, 0);
       g.add(wall);
+    }
+    if (isPeak) {
+      const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.25, 6), mat(`${key}_can`, accent));
+      canopy.position.set(0.55, baseY + 1.15, 0);
+      g.add(canopy);
     }
     const boat = new THREE.Mesh(
       new THREE.BoxGeometry(0.32, 0.08, 0.22),
@@ -800,20 +1069,33 @@ function buildGameRide(
     g.add(ring);
     pushCycle(g, { type: "ringDrop", ring, low: by + 0.35, high: by + 0.7, speed: 1.15 });
   } else if (id === "high_striker") {
-    const h = isHigh ? 2.0 : 1.45;
+    const h = peak(tier) ? 2.25 : isHigh ? 2.0 : 1.45;
     const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, h, 0.08), mat(`${key}_pole`, BRIGHT.metal));
     pole.position.set(0, h / 2 + 0.2, 0.15);
     const bell = new THREE.Mesh(
       new THREE.SphereGeometry(isHigh ? 0.14 : 0.1, 8, 8),
       tier >= 4 ? emissiveAccent(mat, `${key}_bell`, BRIGHT.gold, 0.85) : mat(`${key}_bell`, BRIGHT.gold),
     );
-    bell.position.set(0, 0.45, 0.15);
+    // Bell stays at the top; marker climbs to strike it
+    bell.position.set(0, h + 0.22, 0.15);
+    bell.name = "strikerBell";
     const hammer = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.08, 0.08), mat(`${key}_ham`, accent));
     hammer.position.set(0.3, 0.35, 0.15);
     const marker = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.06), mat(`${key}_mk`, color));
     marker.position.set(0, 0.5, 0.15);
+    marker.name = "strikerMarker";
     g.add(pole, bell, hammer, marker);
-    pushCycle(g, { type: "bell", bell: marker, marker, low: 0.5, high: h + 0.05, speed: 0.85 });
+    if (tier >= 3) {
+      const scale = new THREE.Mesh(new THREE.BoxGeometry(0.04, h * 0.7, 0.02), mat(`${key}_scale`, 0xfef08a));
+      scale.position.set(-0.1, h * 0.45, 0.15);
+      g.add(scale);
+    }
+    if (peak(tier)) {
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.12, 8), mat(`${key}_base`, BRIGHT.wood));
+      base.position.set(0, 0.2, 0.15);
+      g.add(base);
+    }
+    pushCycle(g, { type: "bell", bell, marker, low: 0.5, high: h + 0.05, speed: 0.85 });
     pushCycle(g, { type: "hinge", obj: hammer, axis: "z", amp: 0.9, speed: 1.4, base: -0.2 });
   } else if (id === "basketball_arcade") {
     const lane = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.5), mat(`${key}_lane`, 0xfed7aa));
@@ -831,20 +1113,30 @@ function buildGameRide(
     g.add(ball);
     pushCycle(g, { type: "ballHoop", ball, low: by + 0.15, high: by + 0.85, speed: 1.25 });
   } else {
-    // vr_pods — closed booths, no prize counter
-    const n = isHigh ? 4 : 2;
+    // vr_pods — booths + glowing screen at every stage (not a blank box)
+    const n = peak(tier) ? 5 : isHigh ? 4 : 2;
     for (let i = 0; i < n; i++) {
       const booth = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.55, 0.4), mat(`${key}_booth${i}`, color));
-      booth.position.set(-0.4 + (i % 2) * 0.45 + (i >= 2 ? 0.05 : 0), by + 0.1, (i >= 2 ? 0.35 : 0));
+      booth.position.set(-0.4 + (i % 2) * 0.45 + (i >= 2 ? 0.05 : 0), by + 0.1, (i >= 2 ? 0.35 : 0) + (i >= 4 ? 0.15 : 0));
       g.add(booth);
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.04), mat(`${key}_vis${i}`, 0x0f172a));
+      visor.position.copy(booth.position);
+      visor.position.z += 0.22;
+      visor.position.y += 0.12;
+      g.add(visor);
     }
     const screen = new THREE.Mesh(
-      new THREE.PlaneGeometry(isHigh ? 0.7 : 0.35, isHigh ? 0.35 : 0.22),
-      tier >= 4 ? emissiveAccent(mat, `${key}_scr`, accent, 0.95) : mat(`${key}_scr`, accent),
+      new THREE.PlaneGeometry(isHigh ? 0.7 : 0.45, isHigh ? 0.35 : 0.28),
+      emissiveAccent(mat, `${key}_scr`, accent, tier >= 4 ? 0.95 : 0.7),
     );
-    screen.position.set(0, by + 0.35, 0.45);
+    screen.position.set(0, by + 0.4, 0.55);
     g.add(screen);
-    pushCycle(g, { type: "blink", obj: screen, period: 0.45 });
+    pushCycle(g, { type: "flash", light: screen, period: 0.55 });
+    if (tier >= 3) {
+      const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.4, 4), mat(`${key}_cable`, BRIGHT.metal));
+      cable.position.set(0.35, by + 0.55, 0.2);
+      g.add(cable);
+    }
   }
   return g;
 }
@@ -972,18 +1264,37 @@ function buildGenericRide(
     pushCycle(g, { type: "blink", obj: win, period: 0.7 });
     pushCycle(g, { type: "door", obj: door, amp: 0.35, speed: 0.6 });
   } else if (id === "maze_labyrinth") {
-    const h = isHigh ? 0.75 : 0.5;
-    for (let i = 0; i < (isHigh ? 6 : 4); i++) {
+    const h = peak(tier) ? 0.9 : isHigh ? 0.75 : 0.5;
+    const walls = peak(tier) ? 8 : isHigh ? 6 : 4;
+    const wallObjs: THREE.Object3D[] = [];
+    for (let i = 0; i < walls; i++) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.65, h, 0.1), mat(`${key}_w${i}`, color));
-      const ang = (i / (isHigh ? 6 : 4)) * Math.PI * 2;
+      const ang = (i / walls) * Math.PI * 2;
       wall.position.set(Math.cos(ang) * 0.4, h / 2 + 0.2, Math.sin(ang) * 0.4);
       wall.rotation.y = ang;
       g.add(wall);
+      wallObjs.push(wall);
+    }
+    // Inner rotating gate — maze motion is walls/gates, not only a flag
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(0.55, h * 0.85, 0.08), mat(`${key}_gate`, accent));
+    gate.position.set(0, h / 2 + 0.2, 0);
+    g.add(gate);
+    pushCycle(g, { type: "spin", obj: gate, axis: "y", speed: 0.55 });
+    if (tier >= 3) {
+      const arch = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.12), mat(`${key}_arch`, BRIGHT.wood));
+      arch.position.set(0.45, h + 0.35, 0.4);
+      g.add(arch);
     }
     if (isHigh) {
       const dead = new THREE.Mesh(new THREE.BoxGeometry(0.5, h, 0.1), mat(`${key}_dead`, accent));
       dead.position.set(0.15, h / 2 + 0.2, 0);
       g.add(dead);
+      pushCycle(g, { type: "hinge", obj: dead, axis: "y", amp: 0.35, speed: 0.7, base: 0.2 });
+    }
+    if (peak(tier)) {
+      const hedge = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), mat(`${key}_hedge`, 0x22c55e));
+      hedge.position.set(-0.35, 0.35, -0.35);
+      g.add(hedge);
     }
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.25), mat(`${key}_flag`, accent));
     flag.position.set(0.45, isHigh ? 1.2 : 0.95, 0.4);
@@ -1034,25 +1345,39 @@ function buildGenericRide(
     g.add(pool, sub);
     pushCycle(g, { type: "sub", obj: sub, baseY: sub.position.y, amp: 0.28, speed: 1.0 });
   } else {
-    // motion_cinema — closed hall
-    const hall = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.85, 0.9), mat(`${key}_hall`, color));
-    hall.position.y = tier >= 2 ? 0.75 : 0.5;
+    // motion_cinema — open hall with a screen that changes at every stage
+    const hall = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.85, 0.7), mat(`${key}_hall`, color));
+    hall.position.set(0, tier >= 2 ? 0.75 : 0.5, -0.1);
     g.add(hall);
     const seats = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.35), mat(`${key}_seats`, accent));
-    seats.position.set(0, hall.position.y - 0.15, 0.15);
+    seats.position.set(0, hall.position.y - 0.15, 0.2);
     g.add(seats);
+    const screen = new THREE.Mesh(
+      new THREE.PlaneGeometry(tier >= 4 ? 0.75 : 0.55, tier >= 4 ? 0.42 : 0.32),
+      emissiveAccent(mat, `${key}_scr`, 0x22d3ee, tier >= 4 ? 0.85 : 0.65),
+    );
+    screen.position.set(0, hall.position.y + 0.12, 0.42);
+    g.add(screen);
+    // Flash first so look billboards pick screen motion
+    pushCycle(g, { type: "flash", light: screen, period: 0.7 });
+    pushCycle(g, { type: "shake", obj: seats, amp: 0.045, speed: 6 });
+    if (tier >= 3) {
+      const projector = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.16), mat(`${key}_proj`, BRIGHT.metal));
+      projector.position.set(0, hall.position.y + 0.35, -0.35);
+      g.add(projector);
+    }
     if (isHigh) {
       const row2 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.3), mat(`${key}_row2`, accent));
-      row2.position.set(0, hall.position.y - 0.05, -0.15);
-      const screen = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.7, 0.4),
-        tier >= 4 ? emissiveAccent(mat, `${key}_scr`, 0x22d3ee, 0.75) : mat(`${key}_scr`, 0x22d3ee),
-      );
-      screen.position.set(0, hall.position.y + 0.15, 0.46);
-      g.add(row2, screen);
-      pushCycle(g, { type: "blink", obj: screen, period: 0.8 });
+      row2.position.set(0, hall.position.y - 0.05, -0.05);
+      g.add(row2);
+      pushCycle(g, { type: "shake", obj: row2, amp: 0.035, speed: 5.5 });
     }
-    pushCycle(g, { type: "shake", obj: seats, amp: 0.045, speed: 6 });
+    if (peak(tier)) {
+      const marquee = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.08), emissiveAccent(mat, `${key}_marq`, accent, 0.8));
+      marquee.position.set(0, hall.position.y + 0.55, 0.3);
+      g.add(marquee);
+      pushCycle(g, { type: "flash", light: marquee, period: 1.1 });
+    }
   }
   return g;
 }
@@ -1258,8 +1583,12 @@ export function animateAttraction(obj: THREE.Object3D, dt: number, broken: boole
       }
       case "bell": {
         const u = (Math.sin(time * c.speed) + 1) / 2;
-        c.bell.position.y = c.low + (c.high - c.low) * u;
-        if (c.marker) c.marker.position.y = c.bell.position.y;
+        if (c.marker) c.marker.position.y = c.low + (c.high - c.low) * u;
+        // Gold bell itself rings when the marker reaches the top
+        const nearTop = u > 0.82;
+        c.bell.scale.setScalar(nearTop ? 1.12 + Math.sin(time * 22) * 0.1 : 1);
+        c.bell.rotation.z = nearTop ? Math.sin(time * 18) * 0.28 : 0;
+        c.bell.rotation.x = nearTop ? Math.cos(time * 16) * 0.12 : 0;
         break;
       }
       case "ballHoop": {

@@ -63,11 +63,11 @@ export type ThreeParkHandle = {
   drag: (x: number, y: number) => void;
   endDrag: () => void;
   zoomAt: (delta: number, clientX?: number, clientY?: number) => void;
-  zoomBy: (factor: number) => void;
+  zoomBy: (factor: number, clientX?: number, clientY?: number) => void;
   getZoom: () => number;
   onZoomChange: (fn: (z: number) => void) => () => void;
   beginPinch: (dist: number) => void;
-  pinch: (dist: number) => void;
+  pinch: (dist: number, midClientX?: number, midClientY?: number) => void;
   endPinch: () => void;
   setHover: (p: GridPos | null) => void;
   /** הזזת מטרה יחסית (WASD) בכיוון המצלמה */
@@ -514,7 +514,8 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     lastTileSig = sig;
 
     mapBounds = gridWorldBounds(g.width, g.height);
-    const propTier = sim.state.parkLevel >= 4 ? 5 : sim.state.parkLevel >= 2 ? 3 : 1;
+    // Full 1–5 prop stages — do not collapse park levels into {1,3,5}
+    const propTier = Math.min(5, Math.max(1, Math.floor(sim.state.parkLevel) || 1));
     const pathHigh = propTier >= 4;
 
     // הסר ישנים (גיאומטריה משותפת — לא dispose)
@@ -758,7 +759,8 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   const syncEntities = (sim: Simulation, dt: number) => {
     const live = new Set<string>();
     animTime += dt;
-    const propTier = sim.state.parkLevel >= 4 ? 5 : sim.state.parkLevel >= 2 ? 3 : 1;
+    // Full 1–5 prop stages — do not collapse park levels into {1,3,5}
+    const propTier = Math.min(5, Math.max(1, Math.floor(sim.state.parkLevel) || 1));
 
     for (const a of sim.state.attractions) {
       const key = `attr_${a.uid}`;
@@ -1105,6 +1107,37 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
 
   const clampZoom = (z: number) => Math.max(THREE_ZOOM_MIN, Math.min(THREE_ZOOM_MAX, z));
 
+  const zoomFocusHit = new THREE.Vector3();
+  const zoomAfterHit = new THREE.Vector3();
+
+  /** Zoom toward the world point under the cursor/fingers (not a fixed spot). */
+  const zoomToward = (factor: number, focusClientX?: number, focusClientY?: number) => {
+    const prev = zoom;
+    const next = clampZoom(prev * factor);
+    if (next === prev) return;
+
+    let hasFocus = false;
+    if (focusClientX != null && focusClientY != null) {
+      const ndc = clientToNdc(focusClientX, focusClientY);
+      raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), camera);
+      hasFocus = !!raycaster.ray.intersectPlane(groundPlane, zoomFocusHit);
+    }
+
+    zoom = next;
+    updateCamera();
+
+    if (hasFocus && focusClientX != null && focusClientY != null) {
+      const ndc = clientToNdc(focusClientX, focusClientY);
+      raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), camera);
+      if (raycaster.ray.intersectPlane(groundPlane, zoomAfterHit)) {
+        camTarget.x += zoomFocusHit.x - zoomAfterHit.x;
+        camTarget.z += zoomFocusHit.z - zoomAfterHit.z;
+        updateCamera();
+      }
+    }
+    emitZoom();
+  };
+
   const onResize = () => {
     const cw = container.clientWidth || 1;
     const ch = container.clientHeight || 1;
@@ -1149,15 +1182,11 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     endDrag: () => {
       dragging = false;
     },
-    zoomAt: (delta) => {
-      zoom = clampZoom(zoom * (delta > 0 ? 0.9 : 1.1));
-      updateCamera();
-      emitZoom();
+    zoomAt: (delta, clientX, clientY) => {
+      zoomToward(delta > 0 ? 0.9 : 1.1, clientX, clientY);
     },
-    zoomBy: (factor) => {
-      zoom = clampZoom(zoom * factor);
-      updateCamera();
-      emitZoom();
+    zoomBy: (factor, clientX, clientY) => {
+      zoomToward(factor, clientX, clientY);
     },
     getZoom: () => zoom,
     onZoomChange: (fn) => {
@@ -1167,15 +1196,14 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     beginPinch: (dist) => {
       pinchDist = dist;
     },
-    pinch: (dist) => {
+    pinch: (dist, midClientX, midClientY) => {
       if (pinchDist <= 0) {
         pinchDist = dist;
         return;
       }
-      zoom = clampZoom(zoom * (dist / pinchDist));
+      const factor = dist / pinchDist;
       pinchDist = dist;
-      updateCamera();
-      emitZoom();
+      zoomToward(factor, midClientX, midClientY);
     },
     endPinch: () => {
       pinchDist = 0;
