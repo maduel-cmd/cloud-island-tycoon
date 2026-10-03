@@ -209,6 +209,16 @@ describe("RideMeshes unique silhouettes + cycles", () => {
       "vr_pods",
       "motion_cinema",
       "maze_labyrinth",
+      "giant_frisbee",
+      "top_spin",
+      "bumper_cars",
+      "monorail",
+      "haunted_manor",
+      "mini_railway",
+      "submarine",
+      "shooting_gallery",
+      "ring_toss",
+      "basketball_arcade",
     ];
     for (const id of samples) {
       const def = ATTRACTIONS.find((a) => a.id === id)!;
@@ -255,6 +265,22 @@ describe("RideMeshes unique silhouettes + cycles", () => {
       assert.ok(
         t5.children.length > t1.children.length,
         `${id} high stage must add body parts (${t1.children.length} → ${t5.children.length})`,
+      );
+    }
+  });
+
+  it("stall stages 2 and 3 change the body before stage 4", () => {
+    for (const def of STALLS) {
+      const t1 = buildStallMesh(def, mat, 1);
+      const t2 = buildStallMesh(def, mat, 2);
+      const t3 = buildStallMesh(def, mat, 3);
+      assert.ok(
+        t2.children.length > t1.children.length,
+        `${def.id} stage 2 must differ from stage 1 (${t1.children.length} → ${t2.children.length})`,
+      );
+      assert.ok(
+        t3.children.length > t2.children.length,
+        `${def.id} stage 3 must differ from stage 2 (${t2.children.length} → ${t3.children.length})`,
       );
     }
   });
@@ -348,6 +374,22 @@ describe("ParkProps staff and tiered props", () => {
     assert.ok(wh5.children.length > wh4.children.length);
     assert.ok(wh3.getObjectByName("ramp"));
     assert.ok(wh5.getObjectByName("skylight"));
+  });
+
+  it("decor props change at stage 2 and again at stage 3", () => {
+    for (const kind of ["tree", "bush", "statue", "flower"]) {
+      const t1 = buildDecorMesh(mat, kind, `d_${kind}`, 1);
+      const t2 = buildDecorMesh(mat, kind, `d_${kind}`, 2);
+      const t3 = buildDecorMesh(mat, kind, `d_${kind}`, 3);
+      assert.ok(
+        t2.children.length > t1.children.length,
+        `${kind} stage 2 must differ from stage 1 (${t1.children.length} → ${t2.children.length})`,
+      );
+      assert.ok(
+        t3.children.length > t2.children.length,
+        `${kind} stage 3 must differ from stage 2 (${t2.children.length} → ${t3.children.length})`,
+      );
+    }
   });
 
   it("bin/bench/decor high tier change body, not a shared crown", () => {

@@ -1052,6 +1052,16 @@ function buildGameRide(
       g.add(target);
       pushCycle(g, { type: "slide", obj: target, axis: "x", base: 0, amp: 0.35, speed: 1.4 + r * 0.3 });
     }
+    if (tier >= 3) {
+      const booth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.08), mat(`${key}_booth`, color));
+      booth.position.set(0, by + 0.35, 0.55);
+      g.add(booth);
+    }
+    if (peak(tier)) {
+      const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.06, 0.5), mat(`${key}_canopy`, accent));
+      canopy.position.set(0, by + 0.75, 0.2);
+      g.add(canopy);
+    }
   } else if (id === "ring_toss") {
     const n = isHigh ? 6 : 3;
     for (let i = 0; i < n; i++) {
@@ -1059,10 +1069,20 @@ function buildGameRide(
       bottle.position.set(-0.25 + (i % 3) * 0.25, by + 0.2, 0.2 + Math.floor(i / 3) * 0.25);
       g.add(bottle);
     }
+    if (tier >= 3) {
+      const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.35, 6), mat(`${key}_peg`, BRIGHT.wood));
+      peg.position.set(0.35, by + 0.25, 0.05);
+      g.add(peg);
+    }
     if (isHigh) {
       const table2 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.35), mat(`${key}_t2`, BRIGHT.wood));
       table2.position.set(0, by + 0.55, 0.35);
       g.add(table2);
+    }
+    if (peak(tier)) {
+      const prize = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), mat(`${key}_prize`, accent));
+      prize.position.set(-0.35, by + 0.7, 0.1);
+      g.add(prize);
     }
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 6, 12), mat(`${key}_ring`, accent));
     ring.position.set(0, by + 0.6, 0.25);
@@ -1108,6 +1128,16 @@ function buildGameRide(
       hoop.rotation.x = Math.PI / 2;
       g.add(hoop);
     });
+    if (tier >= 3) {
+      const backboard = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.28, 0.04), mat(`${key}_board`, 0xf8fafc));
+      backboard.position.set(0.25, (isHigh ? by + 0.75 : by + 0.55) + 0.18, 0.05);
+      g.add(backboard);
+    }
+    if (peak(tier)) {
+      const net = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.14, 6, 1, true), mat(`${key}_net`, 0xe2e8f0, { transparent: true, opacity: 0.7 }));
+      net.position.set(0.25, (isHigh ? by + 0.75 : by + 0.55) - 0.08, 0.15);
+      g.add(net);
+    }
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), mat(`${key}_ball`, accent));
     ball.position.set(-0.2, by + 0.15, 0.2);
     g.add(ball);
@@ -1169,6 +1199,24 @@ function buildGenericRide(
     );
     seat.position.y = -len * 0.7;
     arm.add(beam, seat);
+    if (tier >= 3) {
+      // Top-level body part so stage 3 ≠ stage 2 (nested arm children are invisible to stage audits)
+      const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.9, 8), mat(`${key}_tower`, BRIGHT.metal));
+      tower.position.y = 0.55;
+      g.add(tower);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.12, 8), mat(`${key}_hub`, BRIGHT.metal));
+      hub.position.y = 0.05;
+      arm.add(hub);
+    }
+    if (peak(tier)) {
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.03, 6, 14), mat(`${key}_rim`, accent));
+      rim.position.y = seat.position.y;
+      rim.rotation.x = Math.PI / 2;
+      arm.add(rim);
+      const counterweight = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), mat(`${key}_cw`, accent));
+      counterweight.position.set(0, 1.55, 0);
+      g.add(counterweight);
+    }
     g.add(arm);
     pushCycle(g, { type: "pendulum", arm, amp: isHigh ? 0.9 : 0.7, speed: 1.0 });
   } else if (id === "top_spin") {
@@ -1186,6 +1234,14 @@ function buildGenericRide(
       arm.add(car);
       cars.push(car);
     }
+    if (tier >= 3) {
+      const column = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.0, 8), mat(`${key}_col`, BRIGHT.metal));
+      column.position.y = 0.55;
+      g.add(column);
+      const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6), mat(`${key}_axle`, BRIGHT.metal));
+      axle.rotation.z = Math.PI / 2;
+      arm.add(axle);
+    }
     if (isHigh) {
       const lower = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.1), mat(`${key}_arm2`, BRIGHT.metal));
       lower.position.y = -0.55;
@@ -1196,6 +1252,14 @@ function buildGenericRide(
         arm.add(car);
         cars.push(car);
       }
+    }
+    if (peak(tier)) {
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), mat(`${key}_tip`, accent));
+      tip.position.y = 0.2;
+      arm.add(tip);
+      const light = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), emissiveAccent(mat, `${key}_light`, accent, 0.75));
+      light.position.set(0, 1.7, 0);
+      g.add(light);
     }
     g.add(arm);
     pushCycle(g, { type: "topSpin", arm, cars, speed: 1.25 });
@@ -1212,6 +1276,17 @@ function buildGenericRide(
       g.add(car);
       cars.push(car);
     }
+    if (tier >= 3) {
+      const wall = new THREE.Mesh(new THREE.TorusGeometry(r + 0.05, 0.04, 6, 20), mat(`${key}_wall`, BRIGHT.metal));
+      wall.rotation.x = Math.PI / 2;
+      wall.position.y = arena.position.y + 0.08;
+      g.add(wall);
+    }
+    if (peak(tier)) {
+      const light = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), emissiveAccent(mat, `${key}_light`, accent, 0.7));
+      light.position.set(0, arena.position.y + 0.55, 0);
+      g.add(light);
+    }
     pushCycle(g, { type: "bumpers", cars, radius: r * 0.45, speed: 1.35 });
   } else if (id === "monorail") {
     const len = isHigh ? 2.6 : 2.0;
@@ -1223,11 +1298,21 @@ function buildGenericRide(
       p.position.set(x, 0.55, 0);
       g.add(p);
     }
+    if (tier >= 3) {
+      const station = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.35), mat(`${key}_station`, color));
+      station.position.set(-len * 0.35, 0.55, 0.25);
+      g.add(station);
+    }
     if (isHigh) {
       const turn = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.06, 6, 16, Math.PI), mat(`${key}_turn`, BRIGHT.metal));
       turn.position.set(len * 0.4, 1.0, 0.35);
       turn.rotation.x = Math.PI / 2;
       g.add(turn);
+    }
+    if (peak(tier)) {
+      const signal = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), emissiveAccent(mat, `${key}_sig`, 0xef4444, 0.8));
+      signal.position.set(len * 0.35, 1.35, 0);
+      g.add(signal);
     }
     const car = new THREE.Mesh(
       new THREE.BoxGeometry(0.4, 0.22, 0.22),
@@ -1254,12 +1339,22 @@ function buildGenericRide(
     const door = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.38, 0.04), mat(`${key}_door`, 0x312e81));
     door.position.set(-0.15, house.position.y - 0.25, 0.39);
     g.add(house, roof, win, door);
+    if (tier >= 3) {
+      const porch = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.35), mat(`${key}_porch`, BRIGHT.wood));
+      porch.position.set(0, house.position.y - 0.45, 0.45);
+      g.add(porch);
+    }
     if (isHigh) {
       const wing = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.55), mat(`${key}_wing`, color));
       wing.position.set(0.7, house.position.y - 0.1, 0);
       const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.9, 6), mat(`${key}_tw`, 0x312e81));
       tower.position.set(-0.55, house.position.y + 0.35, -0.2);
       g.add(wing, tower);
+    }
+    if (peak(tier)) {
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.12), mat(`${key}_chim`, 0x1e1b4b));
+      chimney.position.set(0.25, house.position.y + 0.95, -0.15);
+      g.add(chimney);
     }
     pushCycle(g, { type: "blink", obj: win, period: 0.7 });
     pushCycle(g, { type: "door", obj: door, amp: 0.35, speed: 0.6 });
@@ -1317,6 +1412,17 @@ function buildGenericRide(
     loco.add(body, stack, car);
     loco.position.set(isHigh ? 0.7 : 0.5, track.position.y + 0.12, 0);
     g.add(loco);
+    if (tier >= 3) {
+      const depot = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.28, 0.3), mat(`${key}_depot`, BRIGHT.wood));
+      depot.position.set(-0.45, 0.35, 0.35);
+      g.add(depot);
+    }
+    if (peak(tier)) {
+      const smoke = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), mat(`${key}_smoke`, 0xe5e7eb, { transparent: true, opacity: 0.55 }));
+      smoke.position.set(0.08, track.position.y + 0.45, 0);
+      g.add(smoke);
+      pushCycle(g, { type: "bob", obj: smoke, baseY: smoke.position.y, amp: 0.08, speed: 1.4 });
+    }
     pushCycle(g, { type: "bumpers", cars: [loco], radius: isHigh ? 0.7 : 0.5, speed: 0.75 });
   } else if (id === "submarine") {
     const pool = new THREE.Mesh(
@@ -1335,10 +1441,26 @@ function buildGenericRide(
       win.position.set(x, 0.05, 0.16);
       sub.add(win);
     }
+    if (tier >= 3) {
+      const periscope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 6), mat(`${key}_peri`, BRIGHT.metal));
+      periscope.position.set(0.05, 0.22, 0);
+      sub.add(periscope);
+      const dock = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.25), mat(`${key}_dock`, BRIGHT.wood));
+      dock.position.set(0.55, pool.position.y + 0.08, 0);
+      g.add(dock);
+    }
     if (isHigh) {
       const tower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.12), mat(`${key}_ct`, accent));
       tower.position.set(0, 0.2, 0);
       sub.add(tower);
+    }
+    if (peak(tier)) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.18), mat(`${key}_fin`, accent));
+      fin.position.set(-0.28, 0.05, 0);
+      sub.add(fin);
+      const buoy = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), emissiveAccent(mat, `${key}_buoy`, 0xf97316, 0.6));
+      buoy.position.set(-0.55, pool.position.y + 0.2, 0.2);
+      g.add(buoy);
     }
     sub.add(body);
     sub.position.y = pool.position.y + 0.28;
@@ -1646,6 +1768,7 @@ export function setAttractionBrokenFlag(obj: THREE.Object3D, broken: boolean): v
 
 function buildBalloonCart(mat: MatFn, key: string, tier: number): THREE.Group {
   const g = new THREE.Group();
+  const s = stageOf(tier);
   const isHigh = high(tier);
   const cart = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.35, 0.45), mat(`${key}_cart`, BRIGHT.wood));
   cart.position.y = 0.35;
@@ -1659,25 +1782,51 @@ function buildBalloonCart(mat: MatFn, key: string, tier: number): THREE.Group {
     g.add(stripe);
   }
   const strings: THREE.Object3D[] = [];
-  const balloons = isHigh
-    ? [
-        [-0.2, 1.35, 0xef4444],
-        [0, 1.55, 0x3b82f6],
-        [0.2, 1.3, 0xfacc15],
-        [-0.05, 1.75, 0xec4899],
-        [0.28, 1.6, 0xa855f7],
-        [-0.28, 1.5, 0x22c55e],
-        [0.1, 1.9, 0xf97316],
-      ]
-    : [
-        [-0.15, 1.15, 0xef4444],
-        [0.05, 1.35, 0x3b82f6],
-        [0.2, 1.1, 0xfacc15],
-        [-0.05, 1.5, 0xec4899],
-        [0.25, 1.4, 0xa855f7],
-      ];
-  const poleH = isHigh ? 0.35 : 0;
-  for (const [dx, dy, c] of balloons as [number, number, number][]) {
+  const balloons: [number, number, number][] =
+    s >= 5
+      ? [
+          [-0.2, 1.35, 0xef4444],
+          [0, 1.55, 0x3b82f6],
+          [0.2, 1.3, 0xfacc15],
+          [-0.05, 1.75, 0xec4899],
+          [0.28, 1.6, 0xa855f7],
+          [-0.28, 1.5, 0x22c55e],
+          [0.1, 1.9, 0xf97316],
+        ]
+      : s >= 4
+        ? [
+            [-0.2, 1.35, 0xef4444],
+            [0, 1.55, 0x3b82f6],
+            [0.2, 1.3, 0xfacc15],
+            [-0.05, 1.75, 0xec4899],
+            [0.28, 1.6, 0xa855f7],
+            [-0.28, 1.5, 0x22c55e],
+          ]
+        : s >= 3
+          ? [
+              [-0.15, 1.15, 0xef4444],
+              [0.05, 1.35, 0x3b82f6],
+              [0.2, 1.1, 0xfacc15],
+              [-0.05, 1.5, 0xec4899],
+              [0.25, 1.4, 0xa855f7],
+              [0.12, 1.65, 0x22c55e],
+            ]
+          : s >= 2
+            ? [
+                [-0.15, 1.15, 0xef4444],
+                [0.05, 1.35, 0x3b82f6],
+                [0.2, 1.1, 0xfacc15],
+                [-0.05, 1.5, 0xec4899],
+                [0.25, 1.4, 0xa855f7],
+              ]
+            : [
+                [-0.15, 1.15, 0xef4444],
+                [0.05, 1.35, 0x3b82f6],
+                [0.2, 1.1, 0xfacc15],
+                [-0.05, 1.5, 0xec4899],
+              ];
+  const poleH = isHigh ? 0.35 : s >= 3 ? 0.15 : 0;
+  for (const [dx, dy, c] of balloons) {
     const string = new THREE.Group();
     const line = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, dy - 0.5 + poleH, 4), mat(`${key}_line${c}`, 0xe5e7eb));
     line.position.y = (dy - 0.5 + poleH) / 2 + 0.5;
@@ -1687,6 +1836,16 @@ function buildBalloonCart(mat: MatFn, key: string, tier: number): THREE.Group {
     string.position.set(dx, 0, 0.15);
     g.add(string);
     strings.push(string);
+  }
+  if (s >= 2) {
+    const awning = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.04, 0.35), mat(`${key}_awn`, 0xdc2626));
+    awning.position.set(0, 0.72, 0.05);
+    g.add(awning);
+  }
+  if (s >= 3) {
+    const pump = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.28, 8), mat(`${key}_pump`, BRIGHT.metal));
+    pump.position.set(0.32, 0.55, -0.05);
+    g.add(pump);
   }
   if (isHigh) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 5), mat(`${key}_pole`, BRIGHT.metal));
@@ -1721,21 +1880,31 @@ export function buildStallMesh(def: StallDef, mat: MatFn, tier = 1): THREE.Group
   if (def.id === "photo_booth") {
     const g = new THREE.Group();
     const booth = new THREE.Mesh(
-      new THREE.BoxGeometry(isHigh ? 1.05 : 0.55, 1.1, isHigh ? 0.65 : 0.55),
+      new THREE.BoxGeometry(isHigh ? 1.05 : t >= 3 ? 0.75 : 0.55, 1.1, isHigh ? 0.65 : t >= 2 ? 0.6 : 0.55),
       mat(`${key}_booth`, colorSafe(col)),
     );
     booth.position.y = 0.65;
     const curtain = new THREE.Mesh(new THREE.PlaneGeometry(isHigh ? 0.55 : 0.35, 0.7), mat(`${key}_curt`, 0xdc2626));
-    curtain.position.set(isHigh ? -0.2 : 0, 0.7, isHigh ? 0.34 : 0.29);
+    curtain.position.set(isHigh ? -0.2 : 0, 0.7, isHigh ? 0.34 : t >= 2 ? 0.32 : 0.29);
     const flash = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), emissiveAccent(mat, `${key}_flash`, 0xfef08a, 0.95));
     flash.position.set(0.15, 1.15, 0.2);
     g.add(booth, curtain, flash);
+    if (t >= 2) {
+      const camera = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.12), mat(`${key}_cam`, BRIGHT.black));
+      camera.position.set(0.22, 1.0, 0.28);
+      g.add(camera);
+    }
+    if (t >= 3) {
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.2, 8), mat(`${key}_stool`, BRIGHT.wood));
+      stool.position.set(-0.15, 0.25, 0.05);
+      g.add(stool);
+    }
     if (isHigh) {
       const curtain2 = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.7), mat(`${key}_curt2`, 0xb91c1c));
       curtain2.position.set(0.28, 0.7, 0.34);
-      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.2, 8), mat(`${key}_stool`, BRIGHT.wood));
-      stool.position.set(-0.15, 0.25, 0.05);
-      g.add(curtain2, stool);
+      const sign = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.04), mat(`${key}_sign`, BRIGHT.gold));
+      sign.position.set(0, 1.25, 0.2);
+      g.add(curtain2, sign);
     }
     pushCycle(g, { type: "flash", light: flash, period: 0.9 });
     g.userData.defId = def.id;
@@ -1766,9 +1935,11 @@ function buildStallProduct(
   mat: MatFn,
   key: string,
   col: number,
-  _tier: number,
+  tier: number,
   isHigh: boolean,
 ): void {
+  const mid = tier >= 2;
+  const rich = tier >= 3;
   if (id === "espresso_bar") {
     const machine = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.25), mat(`${key}_mach`, BRIGHT.metal));
     machine.position.set(-0.15, 0.7, 0);
@@ -1783,6 +1954,16 @@ function buildStallProduct(
       puffs.push(p);
     }
     pushCycle(g, { type: "steam", puffs, speed: 0.75 });
+    if (mid) {
+      const porta = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.08), mat(`${key}_porta`, BRIGHT.metal));
+      porta.position.set(-0.05, 0.55, 0.12);
+      g.add(porta);
+    }
+    if (rich) {
+      const grinder = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.22, 8), mat(`${key}_grind`, 0x44403c));
+      grinder.position.set(0.32, 0.65, -0.05);
+      g.add(grinder);
+    }
     if (isHigh) {
       const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.2), mat(`${key}_shelf`, BRIGHT.wood));
       shelf.position.set(0.25, 0.95, -0.05);
@@ -1798,6 +1979,16 @@ function buildStallProduct(
     g.add(stick, cloud);
     pushCycle(g, { type: "spin", obj: stick, axis: "y", speed: 1.5 });
     pushCycle(g, { type: "spin", obj: cloud, axis: "y", speed: 1.5 });
+    if (mid) {
+      const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.2, 8), mat(`${key}_stand`, BRIGHT.metal));
+      stand.position.set(0, 0.58, 0);
+      g.add(stand);
+    }
+    if (rich) {
+      const cloud2 = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), mat(`${key}_cloud2`, 0xfbcfe8));
+      cloud2.position.set(0.28, 1.0, 0.05);
+      g.add(cloud2);
+    }
     if (isHigh) {
       const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.15, 10), mat(`${key}_bowl`, col));
       bowl.position.set(0.25, 0.6, 0);
@@ -1815,15 +2006,25 @@ function buildStallProduct(
       kernels.push(k);
     }
     pushCycle(g, { type: "pop", objs: kernels, baseY: 0.8, amp: 0.2, speed: 3 });
+    if (mid) {
+      const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.12), mat(`${key}_scoop`, BRIGHT.metal));
+      scoop.position.set(0.25, 0.65, 0.1);
+      g.add(scoop);
+    }
+    if (rich) {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.18), mat(`${key}_box`, col));
+      box.position.set(-0.3, 0.7, 0.1);
+      g.add(box);
+    }
     if (isHigh) {
       const big = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 10), mat(`${key}_ket2`, 0xbae6fd, { transparent: true, opacity: 0.65 }));
       big.position.set(0.3, 0.85, 0);
-      const box = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.18), mat(`${key}_box`, col));
-      box.position.set(-0.3, 0.7, 0.1);
-      g.add(big, box);
+      const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 10), mat(`${key}_lid`, BRIGHT.metal));
+      lid.position.set(0, 1.0, 0);
+      g.add(big, lid);
     }
   } else if (id === "burger_shack") {
-    const grill = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.75 : 0.45, 0.08, 0.35), mat(`${key}_grill`, BRIGHT.black));
+    const grill = new THREE.Mesh(new THREE.BoxGeometry(isHigh ? 0.75 : rich ? 0.6 : 0.45, 0.08, 0.35), mat(`${key}_grill`, BRIGHT.black));
     grill.position.set(0, 0.6, 0);
     const burger = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.12, 10), mat(`${key}_burg`, col));
     burger.position.set(0.2, 0.75, 0.1);
@@ -1836,10 +2037,22 @@ function buildStallProduct(
       puffs.push(p);
     }
     pushCycle(g, { type: "steam", puffs, speed: 0.5 });
+    if (mid) {
+      const spatula = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 0.08), mat(`${key}_spat`, BRIGHT.metal));
+      spatula.position.set(-0.2, 0.68, 0.12);
+      g.add(spatula);
+    }
+    if (rich) {
+      const bun = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 10), mat(`${key}_bun`, 0xfbbf24));
+      bun.position.set(-0.15, 0.72, 0.05);
+      g.add(bun);
+    }
     if (isHigh) {
       const patty = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 10), mat(`${key}_patty`, 0x78350f));
       patty.position.set(-0.2, 0.72, 0.1);
-      g.add(patty);
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.4), mat(`${key}_hood`, BRIGHT.metal));
+      hood.position.set(0, 0.95, 0);
+      g.add(patty, hood);
     }
   } else if (id === "pizza_slice") {
     const oven = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(`${key}_oven`, 0x78716c));
@@ -1855,6 +2068,16 @@ function buildStallProduct(
     fire.position.set(0, 0.55, 0.28);
     g.add(oven, mouth, slice, fire);
     pushCycle(g, { type: "blink", obj: fire, period: 0.35 });
+    if (mid) {
+      const peel = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.03, 0.12), mat(`${key}_peel`, BRIGHT.wood));
+      peel.position.set(0.25, 0.58, 0.05);
+      g.add(peel);
+    }
+    if (rich) {
+      const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.25, 8), mat(`${key}_chim`, 0x57534e));
+      chimney.position.set(-0.15, 0.95, -0.05);
+      g.add(chimney);
+    }
     if (isHigh) {
       const lip = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 6, 16, Math.PI), mat(`${key}_lip`, 0x57534e));
       lip.position.set(0, 0.55, 0.3);
@@ -1866,7 +2089,7 @@ function buildStallProduct(
     freezer.position.y = 0.55;
     g.add(freezer);
     const flavors = [0xf9a8d4, 0xfde68a, 0xa7f3d0, 0xfda4af, 0xbfdbfe, 0xfed7aa];
-    const n = isHigh ? 6 : 3;
+    const n = isHigh ? 6 : rich ? 5 : mid ? 4 : 3;
     for (let i = 0; i < n; i++) {
       const scoop = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), mat(`${key}_sc${i}`, flavors[i]!));
       scoop.position.set(-0.2 + (i % 3) * 0.2, 0.75 + Math.floor(i / 3) * 0.15, 0);
@@ -1883,6 +2106,16 @@ function buildStallProduct(
     churro.position.set(0.2, 0.85, 0);
     g.add(vat, churro);
     pushCycle(g, { type: "spin", obj: churro, axis: "y", speed: 1.8 });
+    if (mid) {
+      const sugar = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.12, 8), mat(`${key}_sugar`, 0xfef3c7));
+      sugar.position.set(0.3, 0.6, 0.05);
+      g.add(sugar);
+    }
+    if (rich) {
+      const tongs = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, 0.04), mat(`${key}_tongs`, BRIGHT.metal));
+      tongs.position.set(0.05, 0.7, 0.15);
+      g.add(tongs);
+    }
     if (isHigh) {
       const rack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.15), mat(`${key}_rack`, BRIGHT.metal));
       rack.position.set(0.25, 0.95, 0);
@@ -1903,6 +2136,16 @@ function buildStallProduct(
     const pretzel = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 6, 12), mat(`${key}_pret`, 0xd97706));
     pretzel.position.set(0.3, 0.75, -0.1);
     g.add(bun, pretzel);
+    if (mid) {
+      const mustard = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.12, 6), mat(`${key}_must`, 0xfacc15));
+      mustard.position.set(-0.3, 0.65, 0.1);
+      g.add(mustard);
+    }
+    if (rich) {
+      const warmer = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.15, 0.25), mat(`${key}_warm`, 0x57534e));
+      warmer.position.set(0.05, 0.55, -0.1);
+      g.add(warmer);
+    }
   } else if (id === "lemonade") {
     const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.4, 10), mat(`${key}_tank`, 0xfde047, { transparent: true, opacity: 0.75 }));
     tank.position.set(-0.1, 0.75, 0);
@@ -1914,6 +2157,16 @@ function buildStallProduct(
     drip.position.set(-0.1, 0.45, 0.22);
     g.add(tank, lemon, tap, drip);
     pushCycle(g, { type: "drip", obj: drip, baseY: 0.4, amp: 0.12, speed: 2 });
+    if (mid) {
+      const ice = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.2), mat(`${key}_ice`, 0xe0f2fe, { transparent: true, opacity: 0.7 }));
+      ice.position.set(0.25, 0.55, -0.05);
+      g.add(ice);
+    }
+    if (rich) {
+      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.12, 8), mat(`${key}_cup`, 0xfef9c3, { transparent: true, opacity: 0.8 }));
+      cup.position.set(0.3, 0.55, 0.12);
+      g.add(cup);
+    }
     if (isHigh) {
       const red = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.4, 10), mat(`${key}_red`, 0xf87171, { transparent: true, opacity: 0.75 }));
       red.position.set(0.25, 0.75, 0);
@@ -1933,6 +2186,16 @@ function buildStallProduct(
     cup.position.set(0, 0.75, 0);
     g.add(cup);
     pushCycle(g, { type: "hinge", obj: cup, axis: "z", amp: 0.12, speed: 1.8 });
+    if (mid) {
+      const seal = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 10), mat(`${key}_seal`, 0xf8fafc));
+      seal.position.set(0, 0.9, 0);
+      g.add(seal);
+    }
+    if (rich) {
+      const cup2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.24, 10), mat(`${key}_cup2`, 0xf9a8d4, { transparent: true, opacity: 0.7 }));
+      cup2.position.set(0.28, 0.7, 0.05);
+      g.add(cup2);
+    }
     if (isHigh) {
       const shaker = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.35, 10), mat(`${key}_shake`, BRIGHT.metal));
       shaker.position.set(0.3, 0.8, 0);
@@ -1950,6 +2213,16 @@ function buildStallProduct(
     cone.position.set(0.3, 0.75, 0.1);
     g.add(iron, cone);
     pushCycle(g, { type: "hinge", obj: lid, axis: "x", amp: 0.7, speed: 1.0, base: -0.1 });
+    if (mid) {
+      const syrup = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.14, 6), mat(`${key}_syrup`, 0x92400e));
+      syrup.position.set(0.3, 0.6, -0.1);
+      g.add(syrup);
+    }
+    if (rich) {
+      const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.03, 10), mat(`${key}_plate`, 0xf8fafc));
+      plate.position.set(0.15, 0.55, 0.15);
+      g.add(plate);
+    }
     if (isHigh) {
       const iron2 = iron.clone();
       iron2.position.set(0.25, 0.65, -0.1);
@@ -1967,6 +2240,16 @@ function buildStallProduct(
     g.add(p);
     puffs.push(p);
     pushCycle(g, { type: "steam", puffs, speed: 0.9 });
+    if (mid) {
+      const salsa = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.1, 8), mat(`${key}_salsa`, 0xdc2626));
+      salsa.position.set(-0.25, 0.6, 0.1);
+      g.add(salsa);
+    }
+    if (rich) {
+      const tortilla = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 12), mat(`${key}_tort`, 0xfde68a));
+      tortilla.position.set(-0.05, 0.68, -0.1);
+      g.add(tortilla);
+    }
     if (isHigh) {
       const taco2 = taco.clone();
       taco2.position.set(-0.15, 0.72, 0.1);
@@ -1982,6 +2265,16 @@ function buildStallProduct(
     basket.position.set(-0.15, 0.75, 0);
     g.add(bucket, basket);
     pushCycle(g, { type: "bob", obj: basket, baseY: 0.75, amp: isHigh ? 0.2 : 0.1, speed: 1.2 });
+    if (mid) {
+      const drum = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.1, 4, 6), mat(`${key}_drum`, 0xd97706));
+      drum.position.set(0.25, 0.82, 0.05);
+      g.add(drum);
+    }
+    if (rich) {
+      const fryer = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.22), mat(`${key}_fryer`, BRIGHT.metal));
+      fryer.position.set(-0.15, 0.58, 0);
+      g.add(fryer);
+    }
     if (isHigh) {
       const deep = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.15, 0.3), mat(`${key}_deep`, BRIGHT.metal));
       deep.position.set(-0.15, 0.6, 0);
@@ -1996,6 +2289,16 @@ function buildStallProduct(
     }
     g.add(rack);
     pushCycle(g, { type: "spin", obj: rack, axis: "y", speed: 0.6 });
+    if (mid) {
+      const glaze = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.1, 8), mat(`${key}_glaze`, 0xf9a8d4));
+      glaze.position.set(0.32, 0.6, 0.05);
+      g.add(glaze);
+    }
+    if (rich) {
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.04, 0.2), mat(`${key}_tray`, BRIGHT.metal));
+      tray.position.set(0, 0.55, 0.1);
+      g.add(tray);
+    }
     if (isHigh) {
       const rack2 = new THREE.Group();
       for (let i = 0; i < 4; i++) {
@@ -2018,6 +2321,16 @@ function buildStallProduct(
     blender.position.set(0, 0.8, 0);
     g.add(blender);
     pushCycle(g, { type: "spin", obj: blade, axis: "y", speed: 8 });
+    if (mid) {
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.12, 8), mat(`${key}_base`, BRIGHT.black));
+      base.position.set(0, 0.55, 0);
+      g.add(base);
+    }
+    if (rich) {
+      const fruit2 = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), mat(`${key}_fruit2`, 0x22c55e));
+      fruit2.position.set(0.28, 0.65, 0.05);
+      g.add(fruit2);
+    }
     if (isHigh) {
       const b2 = blender.clone();
       b2.position.set(0.3, 0.8, 0);
@@ -2033,6 +2346,16 @@ function buildStallProduct(
     mug.position.set(0.15, 0.8, 0.1);
     g.add(shelf, hat, mug);
     pushCycle(g, { type: "bob", obj: hat, baseY: 0.85, amp: 0.04, speed: 1.2 });
+    if (mid) {
+      const plush = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), mat(`${key}_plush`, 0xf472b6));
+      plush.position.set(0.3, 0.7, 0.1);
+      g.add(plush);
+    }
+    if (rich) {
+      const rack = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.55, 0.35), mat(`${key}_rack`, BRIGHT.metal));
+      rack.position.set(-0.35, 0.7, 0.05);
+      g.add(rack);
+    }
     if (isHigh) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.95, 0.15), mat(`${key}_wall`, BRIGHT.wood));
       wall.position.set(0, 0.95, -0.15);
@@ -2043,14 +2366,14 @@ function buildStallProduct(
     }
   } else if (id === "candy_factory") {
     const bowls: THREE.Object3D[] = [];
-    const n = isHigh ? 6 : 3;
+    const n = isHigh ? 6 : rich ? 5 : mid ? 4 : 3;
     for (let i = 0; i < n; i++) {
       const bowl = new THREE.Mesh(
         new THREE.CylinderGeometry(0.1, 0.08, 0.1, 8),
         mat(`${key}_bowl${i}`, [0xf472b6, 0x22d3ee, 0xfacc15, 0xa3e635, 0xc084fc, 0xfb923c][i]!, { transparent: true, opacity: 0.8 }),
       );
       if (isHigh) bowl.position.set(0, 0.6 + i * 0.12, 0);
-      else bowl.position.set(-0.2 + i * 0.2, 0.65, 0);
+      else bowl.position.set(-0.2 + (i % 3) * 0.2, 0.65 + Math.floor(i / 3) * 0.14, 0);
       g.add(bowl);
       bowls.push(bowl);
     }
@@ -2059,7 +2382,7 @@ function buildStallProduct(
     g.add(sweet);
     pushCycle(g, { type: "bob", obj: sweet, baseY: 0.75, amp: 0.2, speed: 2.5 });
   } else if (id === "soda_fountain") {
-    const n = isHigh ? 6 : 3;
+    const n = isHigh ? 6 : rich ? 5 : mid ? 4 : 3;
     for (let i = 0; i < n; i++) {
       const tap = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 6), mat(`${key}_tap${i}`, [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e, 0xa855f7, 0xf97316][i]!));
       tap.position.set(-0.25 + (i % 3) * 0.25, 0.8 + Math.floor(i / 3) * 0.2, 0.1);
@@ -2081,6 +2404,16 @@ function buildStallProduct(
     const prod = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), mat(`${key}_prod`, col));
     prod.position.set(0, 0.75, 0);
     g.add(prod);
+    if (mid) {
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.2), mat(`${key}_tray`, BRIGHT.wood));
+      tray.position.set(0, 0.55, 0);
+      g.add(tray);
+    }
+    if (rich) {
+      const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.18, 8), mat(`${key}_jar`, col));
+      jar.position.set(0.25, 0.65, 0);
+      g.add(jar);
+    }
   }
 }
 

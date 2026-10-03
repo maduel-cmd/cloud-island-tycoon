@@ -24,10 +24,6 @@ function stageOf(tier: number): number {
   return Math.max(1, Math.min(5, Math.floor(tier) || 1));
 }
 
-function isHigh(tier: number): boolean {
-  return stageOf(tier) >= 4;
-}
-
 export function buildStaffMesh(mat: MatFn, role: StaffRole, id: string): THREE.Group {
   const g = new THREE.Group();
   const key = `staff_${id}`;
@@ -379,82 +375,150 @@ export function setTrashAmount(obj: THREE.Object3D, amount: number): void {
 
 export function buildDecorMesh(mat: MatFn, kind: string, key: string, tier = 1): THREE.Group {
   const g = new THREE.Group();
-  const hi = isHigh(tier);
+  const s = stageOf(tier);
   if (kind === "tree") {
     const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(hi ? 0.1 : 0.07, hi ? 0.12 : 0.09, hi ? 0.55 : 0.4, 6),
+      new THREE.CylinderGeometry(s >= 4 ? 0.1 : s >= 2 ? 0.08 : 0.07, s >= 4 ? 0.12 : s >= 2 ? 0.1 : 0.09, s >= 4 ? 0.55 : s >= 3 ? 0.48 : 0.4, 6),
       mat(`${key}_trunk`, 0x78350f),
     );
-    trunk.position.y = hi ? 0.35 : 0.3;
+    trunk.position.y = s >= 4 ? 0.35 : 0.3;
     const leaf = new THREE.Mesh(
-      new THREE.SphereGeometry(hi ? 0.45 : 0.35, 8, 8),
+      new THREE.SphereGeometry(s >= 4 ? 0.45 : s >= 3 ? 0.4 : s >= 2 ? 0.37 : 0.35, 8, 8),
       mat(`${key}_leaf`, 0x22c55e),
     );
-    leaf.position.y = hi ? 0.85 : 0.7;
+    leaf.position.y = s >= 4 ? 0.85 : s >= 3 ? 0.78 : 0.7;
     leaf.name = "leaf";
     g.add(trunk, leaf);
-    if (hi) {
+    if (s >= 2) {
+      const root = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.08, 6), mat(`${key}_root`, 0x92400e));
+      root.position.y = 0.04;
+      root.name = "root";
+      g.add(root);
+    }
+    if (s >= 3) {
+      const branch = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), mat(`${key}_branch`, 0x16a34a));
+      branch.position.set(-0.22, leaf.position.y - 0.05, 0.1);
+      branch.name = "branch";
+      g.add(branch);
+    }
+    if (s >= 4) {
       const leaf2 = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 8), mat(`${key}_leaf2`, 0x4ade80));
       leaf2.position.set(0.2, 1.05, 0.1);
       leaf2.name = "leaf2";
       g.add(leaf2);
+    }
+    if (s >= 5) {
+      const nest = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), mat(`${key}_nest`, 0xa16207));
+      nest.position.set(0.15, 1.15, -0.1);
+      nest.name = "nest";
+      g.add(nest);
     }
     g.userData.sway = leaf;
   } else if (kind === "bush") {
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.2, 5), mat(`${key}_trunk`, 0x78350f));
     trunk.position.y = 0.12;
     const leaf = new THREE.Mesh(
-      new THREE.SphereGeometry(hi ? 0.32 : 0.22, 8, 8),
+      new THREE.SphereGeometry(s >= 4 ? 0.32 : s >= 3 ? 0.28 : s >= 2 ? 0.25 : 0.22, 8, 8),
       mat(`${key}_leaf`, 0x4ade80),
     );
-    leaf.position.y = hi ? 0.4 : 0.32;
+    leaf.position.y = s >= 4 ? 0.4 : s >= 2 ? 0.36 : 0.32;
     leaf.name = "leaf";
     g.add(trunk, leaf);
-    if (hi) {
+    if (s >= 2) {
+      const berry = new THREE.Mesh(new THREE.SphereGeometry(0.04, 5, 5), mat(`${key}_berry`, 0xdc2626));
+      berry.position.set(0.12, leaf.position.y + 0.05, 0.08);
+      berry.name = "berry";
+      g.add(berry);
+    }
+    if (s >= 3) {
+      const leafSide = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), mat(`${key}_side`, 0x22c55e));
+      leafSide.position.set(-0.18, 0.3, 0.05);
+      leafSide.name = "leafSide";
+      g.add(leafSide);
+    }
+    if (s >= 4) {
       const leaf2 = leaf.clone();
       leaf2.position.set(0.22, 0.35, 0.05);
+      leaf2.name = "leaf2";
       g.add(leaf2);
+    }
+    if (s >= 5) {
+      const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), mat(`${key}_bloom`, 0xf9a8d4));
+      bloom.position.set(0, leaf.position.y + 0.12, 0);
+      bloom.name = "bloom";
+      g.add(bloom);
     }
     g.userData.sway = leaf;
   } else if (kind === "statue") {
     const plinth = new THREE.Mesh(
-      new THREE.CylinderGeometry(hi ? 0.28 : 0.2, hi ? 0.3 : 0.22, 0.2, 8),
+      new THREE.CylinderGeometry(s >= 4 ? 0.28 : s >= 2 ? 0.24 : 0.2, s >= 4 ? 0.3 : s >= 2 ? 0.26 : 0.22, 0.2, 8),
       mat(`${key}_plinth`, BRIGHT.stone),
     );
     plinth.position.y = 0.1;
-    const figure = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 4, 6), mat(`${key}_fig`, 0xcbd5e1));
-    figure.position.y = 0.55;
+    const figure = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, s >= 3 ? 0.48 : 0.4, 4, 6), mat(`${key}_fig`, 0xcbd5e1));
+    figure.position.y = s >= 3 ? 0.6 : 0.55;
     figure.name = "figure";
     g.add(plinth, figure);
-    if (hi) {
+    if (s >= 2) {
+      const plaque = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.03), mat(`${key}_plaque`, BRIGHT.gold));
+      plaque.position.set(0, 0.22, 0.22);
+      plaque.name = "plaque";
+      g.add(plaque);
+    }
+    if (s >= 3) {
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.22, 3, 5), mat(`${key}_arm`, 0xcbd5e1));
+      arm.position.set(0.18, 0.7, 0);
+      arm.rotation.z = -0.6;
+      arm.name = "arm";
+      g.add(arm);
+    }
+    if (s >= 4) {
       const cloak = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.45, 6), mat(`${key}_cloak`, 0x64748b));
       cloak.position.y = 0.5;
       cloak.name = "cloak";
       g.add(cloak);
     }
+    if (s >= 5) {
+      const crown = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.12, 5), mat(`${key}_crown`, BRIGHT.gold));
+      crown.position.set(0, figure.position.y + 0.35, 0);
+      crown.name = "crown";
+      g.add(crown);
+    }
   } else {
     // flower bed — several flowers, not one ball
     const bed = new THREE.Mesh(
-      new THREE.BoxGeometry(hi ? 0.7 : 0.45, 0.08, hi ? 0.4 : 0.3),
+      new THREE.BoxGeometry(s >= 4 ? 0.7 : s >= 3 ? 0.55 : s >= 2 ? 0.5 : 0.45, 0.08, s >= 4 ? 0.4 : s >= 2 ? 0.35 : 0.3),
       mat(`${key}_bed`, 0x65a30d),
     );
     bed.position.y = 0.06;
     g.add(bed);
     const heads: THREE.Object3D[] = [];
-    const n = hi ? 7 : 5;
+    const n = s >= 5 ? 8 : s >= 4 ? 7 : s >= 3 ? 6 : s >= 2 ? 5 : 4;
     for (let i = 0; i < n; i++) {
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.18, 4), mat(`${key}_st${i}`, 0x16a34a));
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, s >= 3 ? 0.22 : 0.18, 4), mat(`${key}_st${i}`, 0x16a34a));
       const head = new THREE.Mesh(
-        new THREE.SphereGeometry(i === n - 1 && hi ? 0.1 : 0.06, 6, 6),
-        mat(`${key}_fl${i}`, [0xec4899, 0xfacc15, 0xa855f7, 0xf97316, 0x3b82f6, 0xf43f5e, 0x22d3ee][i % 7]!),
+        new THREE.SphereGeometry(i === n - 1 && s >= 4 ? 0.1 : 0.06, 6, 6),
+        mat(`${key}_fl${i}`, [0xec4899, 0xfacc15, 0xa855f7, 0xf97316, 0x3b82f6, 0xf43f5e, 0x22d3ee, 0xfbbf24][i % 8]!),
       );
       const grp = new THREE.Group();
       stem.position.y = 0.12;
-      head.position.y = 0.24;
+      head.position.y = s >= 3 ? 0.28 : 0.24;
       grp.add(stem, head);
       grp.position.set(-0.2 + (i % 4) * 0.12, 0.08, (Math.floor(i / 4) - 0.3) * 0.15);
       g.add(grp);
       heads.push(grp);
+    }
+    if (s >= 2) {
+      const border = new THREE.Mesh(new THREE.BoxGeometry(bed.geometry.parameters.width + 0.06, 0.04, bed.geometry.parameters.depth + 0.06), mat(`${key}_border`, BRIGHT.wood));
+      border.position.y = 0.04;
+      border.name = "border";
+      g.add(border);
+    }
+    if (s >= 3) {
+      const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.35, 5), mat(`${key}_stake`, BRIGHT.wood));
+      stake.position.set(0.28, 0.22, 0);
+      stake.name = "stake";
+      g.add(stake);
     }
     g.userData.swayHeads = heads;
   }

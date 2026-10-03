@@ -516,7 +516,6 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     mapBounds = gridWorldBounds(g.width, g.height);
     // Full 1–5 prop stages — do not collapse park levels into {1,3,5}
     const propTier = Math.min(5, Math.max(1, Math.floor(sim.state.parkLevel) || 1));
-    const pathHigh = propTier >= 4;
 
     // הסר ישנים (גיאומטריה משותפת — לא dispose)
     for (const m of tileMeshes.values()) {
@@ -562,22 +561,34 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         mesh.userData = { gx: x, gy: y, kind };
         tilesGroup.add(mesh);
         tileMeshes.set(`${x},${y}`, mesh);
-        // שביל אבן עם שפה — high stage: double edge + small lamp
+        // Path body changes at stages 2, 3, 4+ (not only at 4)
         if (kind === "path") {
-          const edge = new THREE.Mesh(
-            new THREE.BoxGeometry(ISO_TILE * (pathHigh ? 1.06 : 1.02), 0.04, ISO_TILE * (pathHigh ? 1.06 : 1.02)),
-            mat("path_edge", 0x8a8070, { roughness: 0.95 }),
-          );
-          edge.position.set(p.x, 0.08, p.z);
-          edge.receiveShadow = true;
-          tilesGroup.add(edge);
-          tileMeshes.set(`edge_${x},${y}`, edge);
-          if (pathHigh) {
+          const edgeScale = propTier >= 4 ? 1.06 : propTier >= 3 ? 1.04 : propTier >= 2 ? 1.02 : 1.0;
+          if (propTier >= 2) {
+            const edge = new THREE.Mesh(
+              new THREE.BoxGeometry(ISO_TILE * edgeScale, propTier >= 3 ? 0.05 : 0.035, ISO_TILE * edgeScale),
+              mat("path_edge", propTier >= 3 ? 0x8a8070 : 0x7a7060, { roughness: 0.95 }),
+            );
+            edge.position.set(p.x, 0.08, p.z);
+            edge.receiveShadow = true;
+            tilesGroup.add(edge);
+            tileMeshes.set(`edge_${x},${y}`, edge);
+          }
+          if (propTier >= 3) {
+            const cobble = new THREE.Mesh(
+              new THREE.BoxGeometry(ISO_TILE * 0.55, 0.025, ISO_TILE * 0.55),
+              mat("path_cobble", 0x9a9180, { roughness: 0.97 }),
+            );
+            cobble.position.set(p.x, 0.1, p.z);
+            tilesGroup.add(cobble);
+            tileMeshes.set(`cobble_${x},${y}`, cobble);
+          }
+          if (propTier >= 4) {
             const edge2 = new THREE.Mesh(
               new THREE.BoxGeometry(ISO_TILE * 0.92, 0.03, ISO_TILE * 0.92),
               mat("path_edge2", 0xa89f90, { roughness: 0.95 }),
             );
-            edge2.position.set(p.x, 0.1, p.z);
+            edge2.position.set(p.x, 0.11, p.z);
             tilesGroup.add(edge2);
             tileMeshes.set(`edge2_${x},${y}`, edge2);
             if ((x + y) % 5 === 0) {
@@ -595,6 +606,15 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
               tilesGroup.add(lamp);
               tileMeshes.set(`lamp_${x},${y}`, lamp);
             }
+          }
+          if (propTier >= 5 && (x + y) % 7 === 0) {
+            const planter = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.08, 0.1, 0.14, 6),
+              mat("path_planter", 0x65a30d),
+            );
+            planter.position.set(p.x - 0.32, 0.12, p.z - 0.32);
+            tilesGroup.add(planter);
+            tileMeshes.set(`planter_${x},${y}`, planter);
           }
         }
       }
@@ -652,51 +672,53 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       fogCloudsGroup.add(grassInst, mistInst, puffInst);
     }
 
-    // שער אבן — high stage: thicker arch + two openings; only flags animate
+    // שער אבן — body changes at stages 2, 3, 4+ (not only at 4); flags animate
     const gate = g.gatePos;
     const gp = gridToWorld(gate.x, gate.y, 0);
     const gateKey = "gate_arch";
-    const gateHigh = propTier >= 4;
     let gateObj = entityMeshes.get(gateKey) as THREE.Group | undefined;
-    if (gateObj && gateObj.userData.gateHigh !== gateHigh) {
+    if (gateObj && gateObj.userData.propTier !== propTier) {
       entitiesGroup.remove(gateObj);
       entityMeshes.delete(gateKey);
       gateObj = undefined;
     }
     if (!gateObj) {
       gateObj = new THREE.Group();
-      gateObj.userData.gateHigh = gateHigh;
+      gateObj.userData.propTier = propTier;
       const stone = mat("gate_stone", 0x6a6358, { roughness: 0.95, metalness: 0.05 });
       const gold = mat("gate_gold", 0xc9a227, { roughness: 0.35, metalness: 0.65, emissive: 0x3a2a08, emissiveIntensity: 0.15 });
       const wood = mat("gate_wood", 0x4a3420, { roughness: 0.9 });
       const banner = mat("gate_banner", 0x6b1e1e, { roughness: 0.85 });
 
-      const span = gateHigh ? 1.05 : 0.7;
-      const thick = gateHigh ? 0.5 : 0.38;
+      const span = propTier >= 4 ? 1.05 : propTier >= 3 ? 0.9 : propTier >= 2 ? 0.8 : 0.7;
+      const thick = propTier >= 4 ? 0.5 : propTier >= 3 ? 0.44 : propTier >= 2 ? 0.4 : 0.38;
+      const pillarH = propTier >= 3 ? 2.35 : 2.2;
       const baseL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.35, 0.6), stone);
       const baseR = baseL.clone();
       baseL.position.set(-span, 0.18, 0);
       baseR.position.set(span, 0.18, 0);
 
-      const p1 = new THREE.Mesh(new THREE.BoxGeometry(thick, 2.2, thick), stone);
+      const p1 = new THREE.Mesh(new THREE.BoxGeometry(thick, pillarH, thick), stone);
       const p2 = p1.clone();
-      p1.position.set(-span, 1.25, 0);
-      p2.position.set(span, 1.25, 0);
+      p1.position.set(-span, pillarH / 2 + 0.15, 0);
+      p2.position.set(span, pillarH / 2 + 0.15, 0);
 
       const capL = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.45, 4), gold);
       const capR = capL.clone();
-      capL.position.set(-span, 2.55, 0);
-      capR.position.set(span, 2.55, 0);
+      capL.position.set(-span, pillarH + 0.35, 0);
+      capR.position.set(span, pillarH + 0.35, 0);
       capL.rotation.y = Math.PI / 4;
       capR.rotation.y = Math.PI / 4;
 
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(span * 2 + 0.4, gateHigh ? 0.45 : 0.32, 0.45), wood);
-      beam.position.set(0, 2.15, 0);
+      const beamH = propTier >= 4 ? 0.45 : propTier >= 2 ? 0.38 : 0.32;
+      const beamY = propTier >= 3 ? 2.25 : 2.15;
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(span * 2 + 0.4, beamH, 0.45), wood);
+      beam.position.set(0, beamY, 0);
       const trim = new THREE.Mesh(new THREE.BoxGeometry(span * 2 + 0.5, 0.08, 0.48), gold);
-      trim.position.set(0, 2.38, 0);
+      trim.position.set(0, beamY + 0.23, 0);
 
       const crest = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.55, 0.12), gold);
-      crest.position.set(0, 2.65, 0.08);
+      crest.position.set(0, beamY + 0.5, 0.08);
 
       const banL = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.85), banner);
       const banR = banL.clone();
@@ -709,11 +731,38 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       step.position.set(0, 0.06, 0.35);
 
       gateObj.add(baseL, baseR, p1, p2, capL, capR, beam, trim, crest, banL, banR, step);
-      if (gateHigh) {
-        // second opening — middle pillar
+
+      if (propTier >= 2) {
+        // Stage 2: lanterns on the pillars
+        for (const sx of [-span, span]) {
+          const lantern = new THREE.Mesh(
+            new THREE.SphereGeometry(0.08, 8, 8),
+            mat("gate_lantern", 0xfef08a, { emissive: 0xfef08a, emissiveIntensity: 0.55 }),
+          );
+          lantern.position.set(sx, 1.7, thick / 2 + 0.08);
+          gateObj.add(lantern);
+        }
+      }
+      if (propTier >= 3) {
+        // Stage 3: arch braces under the beam (body change before dual opening)
+        const braceL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.12), wood);
+        const braceR = braceL.clone();
+        braceL.position.set(-span * 0.45, beamY - 0.35, 0);
+        braceR.position.set(span * 0.45, beamY - 0.35, 0);
+        braceL.rotation.z = 0.45;
+        braceR.rotation.z = -0.45;
+        gateObj.add(braceL, braceR);
+      }
+      if (propTier >= 4) {
+        // Stage 4+: second opening — middle pillar
         const mid = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.0, 0.35), stone);
         mid.position.set(0, 1.15, 0);
         gateObj.add(mid);
+      }
+      if (propTier >= 5) {
+        const finial = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 4), gold);
+        finial.position.set(0, beamY + 0.95, 0);
+        gateObj.add(finial);
       }
       gateObj.traverse((c) => {
         if ((c as THREE.Mesh).isMesh) {
@@ -1172,12 +1221,13 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         orbitYaw += dx * 0.0055;
         orbitPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, orbitPitch - dy * 0.004));
       } else {
-        // pan: המבט עוקב אחרי האצבע/העכבר (ימינה→ימינה, למטה→למטה)
+        // Grab-the-park pan: world stays under the finger (right and down).
+        // forward = toward camera on ground; screen-right = `right`.
         const radius = BASE_RADIUS / zoom;
         const scale = radius * 0.0026;
         const forward = new THREE.Vector3(Math.sin(orbitYaw), 0, Math.cos(orbitYaw));
         const right = new THREE.Vector3(Math.cos(orbitYaw), 0, -Math.sin(orbitYaw));
-        camTarget.addScaledVector(right, dx * scale);
+        camTarget.addScaledVector(right, -dx * scale);
         camTarget.addScaledVector(forward, -dy * scale);
       }
       updateCamera();
@@ -1212,10 +1262,11 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       pinchDist = 0;
     },
     nudge: (forwardAmt, rightAmt) => {
-      const forward = new THREE.Vector3(Math.sin(orbitYaw), 0, Math.cos(orbitYaw));
+      // Positive forward = into the park (away from camera). `forward` vec points toward camera.
+      const towardCamera = new THREE.Vector3(Math.sin(orbitYaw), 0, Math.cos(orbitYaw));
       const right = new THREE.Vector3(Math.cos(orbitYaw), 0, -Math.sin(orbitYaw));
       const step = (BASE_RADIUS / zoom) * 0.04;
-      camTarget.addScaledVector(forward, forwardAmt * step);
+      camTarget.addScaledVector(towardCamera, -forwardAmt * step);
       camTarget.addScaledVector(right, rightAmt * step);
       updateCamera();
     },
