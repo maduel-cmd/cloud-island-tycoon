@@ -15,6 +15,7 @@ import {
   buildAttractionMesh,
   buildStallMesh,
 } from "./RideMeshes";
+import { computeWindBurst, WIND_BURST_RADIUS } from "./cloudWindBurst";
 
 export const THREE_ZOOM_MIN = 0.35;
 export const THREE_ZOOM_MAX = 3.5;
@@ -42,6 +43,11 @@ export type ThreeParkHandle = {
   setHover: (p: GridPos | null) => void;
   /** הזזת מטרה יחסית (WASD) בכיוון המצלמה */
   nudge: (forward: number, right: number) => void;
+  /**
+   * Finger wind: scatter park-mist clouds near the tap.
+   * Cliff-edge cloud tiles are never affected. Returns true if any mist moved.
+   */
+  blowCloudsAt: (clientX: number, clientY: number) => boolean;
 };
 
 const TILE_COLORS: Record<string, number> = {
@@ -151,10 +157,13 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   const root = new THREE.Group();
   scene.add(root);
   const tilesGroup = new THREE.Group();
+  /** Cliff-edge cloud tiles only — never scattered by finger wind */
   const fogCloudsGroup = new THREE.Group();
+  /** Soft mist that can cover the park — finger wind blows these away */
+  const parkMistGroup = new THREE.Group();
   const entitiesGroup = new THREE.Group();
   const fxGroup = new THREE.Group();
-  root.add(tilesGroup, fogCloudsGroup, entitiesGroup, fxGroup);
+  root.add(tilesGroup, fogCloudsGroup, parkMistGroup, entitiesGroup, fxGroup);
 
   // אי אבן / צוקים — כמו starting zone (לא גליל חום קריקטורי)
   const islandMat = new THREE.MeshStandardMaterial({
@@ -463,9 +472,108 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         prepTileTex(t);
         cloudEdgeMap = t;
         lastTileSig = "";
+        // Refresh mist materials with the painted cloud texture
+        for (const child of parkMistGroup.children) {
+          const m = (child as THREE.Mesh).material;
+          if (m instanceof THREE.MeshStandardMaterial && !m.map) {
+            m.map = t;
+            m.color.set(0xffffff);
+            m.needsUpdate = true;
+          }
+        }
       });
     }
   }
+
+  let mistSeeded = false;
+  let mistIdSeq = 0;
+
+  const mistMat = () => {
+    const map = cloudEdgeMap;
+    return new THREE.MeshStandardMaterial({
+      color: map ? 0xffffff : 0xf2f6fb,
+      map: map ?? undefined,
+      transparent: true,
+      opacity: 0.78,
+      roughness: 1,
+      metalness: 0,
+      depthWrite: false,
+      flatShading: !map,
+    });
+  };
+
+  /** Soft park-covering mist — separate from cliff-edge tiles */
+  const seedParkMist = (sim: Simulation) => {
+    if (mistSeeded) return;
+    mistSeeded = true;
+    const g = sim.grid;
+    const candidates: { wx: number; wz: number }[] = [];
+    for (let y = 2; y < g.height - 2; y += 2) {
+      for (let x = 2; x < g.width - 2; x += 2) {
+        const kind = g.get(x, y);
+        if (kind === "void") continue;
+        // Prefer undeveloped / open meadow so mist reads as "clouds over park"
+        if (kind === "grass" || kind === "cloud" || kind === "locked") {
+          const p = gridToWorld(x, y, 0);
+          candidates.push({ wx: p.x, wz: p.z });
+        }
+      }
+    }
+    // Spread enough patches that some areas are covered and others clear
+    const count = Math.min(28, candidates.length);
+    for (let i = 0; i < count; i++) {
+      const c = candidates[(i * 7) % candidates.length]!;
+      const id = `mist_${mistIdSeq++}`;
+      const puff = new THREE.Mesh(geoCache.cloudPuff, mistMat());
+      const s = 2.4 + (i % 4) * 0.45;
+      puff.scale.set(s * 1.6, s * 0.55, s * 1.3);
+      puff.position.set(
+        c.wx + ((i * 13) % 5) * 0.15 - 0.3,
+        1.15 + (i % 3) * 0.35,
+        c.wz + ((i * 17) % 5) * 0.15 - 0.3,
+      );
+      puff.userData = {
+        scatterable: true,
+        mistId: id,
+        scattering: false,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        life: 0,
+        baseOpacity: 0.78,
+      };
+      parkMistGroup.add(puff);
+    }
+  };
+
+  const tickParkMist = (dt: number) => {
+    const doomed: THREE.Object3D[] = [];
+    for (const child of parkMistGroup.children) {
+      const ud = child.userData;
+      if (!ud.scattering) continue;
+      child.position.x += (ud.vx as number) * dt;
+      child.position.y += (ud.vy as number) * dt;
+      child.position.z += (ud.vz as number) * dt;
+      ud.vx *= 0.94;
+      ud.vz *= 0.94;
+      ud.vy = (ud.vy as number) * 0.97 + 1.8 * dt;
+      ud.life = (ud.life as number) - dt;
+      const mat = (child as THREE.Mesh).material;
+      if (mat instanceof THREE.MeshStandardMaterial) {
+        const t = Math.max(0, Math.min(1, (ud.life as number) / 1.1));
+        mat.opacity = (ud.baseOpacity as number) * t;
+        child.scale.multiplyScalar(1 + dt * 0.55);
+      }
+      if ((ud.life as number) <= 0 || child.position.y > 14) {
+        doomed.push(child);
+      }
+    }
+    for (const c of doomed) {
+      parkMistGroup.remove(c);
+      const mat = (c as THREE.Mesh).material;
+      if (mat instanceof THREE.Material) mat.dispose();
+    }
+  };
 
   const zoomListeners = new Set<(z: number) => void>();
   let dragging = false;
@@ -983,6 +1091,8 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   const sync = (sim: Simulation, dt: number) => {
     applyZoneLook(sim.state.parkLevel);
     rebuildTiles(sim);
+    seedParkMist(sim);
+    tickParkMist(dt);
     syncEntities(sim, dt);
     setDayNight(sim.state.timeOfDay);
     updateCamera();
@@ -1038,6 +1148,34 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     };
   };
 
+  const blowCloudsAt = (clientX: number, clientY: number): boolean => {
+    const ndc = clientToNdc(clientX, clientY);
+    raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), camera);
+    if (!raycaster.ray.intersectPlane(groundPlane, hit)) return false;
+
+    const points: { id: string; x: number; z: number }[] = [];
+    const byId = new Map<string, THREE.Object3D>();
+    for (const child of parkMistGroup.children) {
+      const ud = child.userData;
+      if (!ud.scatterable || ud.scattering || ud.cliffEdge) continue;
+      const id = ud.mistId as string;
+      points.push({ id, x: child.position.x, z: child.position.z });
+      byId.set(id, child);
+    }
+    const impulses = computeWindBurst(hit.x, hit.z, points, WIND_BURST_RADIUS);
+    if (impulses.length === 0) return false;
+    for (const imp of impulses) {
+      const obj = byId.get(imp.id);
+      if (!obj) continue;
+      obj.userData.scattering = true;
+      obj.userData.vx = imp.vx;
+      obj.userData.vy = imp.vy;
+      obj.userData.vz = imp.vz;
+      obj.userData.life = 0.85 + Math.random() * 0.45;
+    }
+    return true;
+  };
+
   const screenToGrid = (clientX: number, clientY: number): GridPos => {
     const ndc = clientToNdc(clientX, clientY);
     raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), camera);
@@ -1080,6 +1218,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     setDayNight,
     screenToGrid,
     setHover,
+    blowCloudsAt,
     beginDrag: (x, y, mode = "orbit") => {
       dragging = true;
       dragMode = mode;
