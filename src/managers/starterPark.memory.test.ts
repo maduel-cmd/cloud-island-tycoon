@@ -58,8 +58,8 @@ describe("memory: starter lot is empty bank (no pre-placed content)", () => {
     assert.equal(kit.attractionLeft, 1);
     assert.equal(kit.stallLeft, 1);
     assert.equal(kit.binLeft, 1);
-    assert.equal(kit.janitorLeft, 2);
-    assert.equal(kit.runnerLeft, 2);
+    assert.equal(kit.janitorLeft, 1);
+    assert.equal(kit.runnerLeft, 1);
     assert.ok(getStall(kit.stallId));
   });
 
@@ -68,7 +68,7 @@ describe("memory: starter lot is empty bank (no pre-placed content)", () => {
     assert.equal(sim.state.staff.length, 0);
     sim.hireStaff("janitor");
     assert.equal(sim.state.staff.length, 1);
-    assert.equal(sim.state.starterKit.janitorLeft, 1);
+    assert.equal(sim.state.starterKit.janitorLeft, 0);
     assert.equal(sim.state.staff[0]!.role, "janitor");
   });
 

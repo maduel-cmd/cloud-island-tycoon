@@ -113,6 +113,8 @@ export interface PlacedStall {
   servingTimer: number;
   revenueToday: number;
   awaitingRestock: boolean;
+  /** Accrues toward def.restockTime when no warehouse yet */
+  restockAcc?: number;
 }
 
 export interface Visitor {
@@ -146,6 +148,8 @@ export interface Visitor {
   thoughtTimer: number;
   /** Left (or leaving) because mood crashed — no more purchases */
   angryLeave?: boolean;
+  /** Gate ticket charged only when guest first reaches a ride */
+  paidAdmission?: boolean;
   /** אנימציית דמות 2.5D */
   facing: "ne" | "se" | "sw" | "nw";
   walkPhase: number;
@@ -199,4 +203,41 @@ export interface GameSnapshot {
   parkingBays: number;
   paused: boolean;
   speed: 1 | 2 | 3;
+  /** Save schema version — bump only when adding required fields */
+  saveVersion?: number;
+  gems?: number;
+  timeOfDay?: number;
+  ticketGateFee?: number;
+  warehouseBuilt?: boolean;
+  parkLevel?: number;
+  parkXp?: number;
+  frustratedLeftToday?: number;
+  gameOver?: boolean;
+  gameOverReason?: string | null;
+  starterKit?: {
+    attractionId: string;
+    stallId: string;
+    attractionLeft: number;
+    stallLeft: number;
+    binLeft: number;
+    janitorLeft: number;
+    runnerLeft: number;
+  };
+  attractions?: PlacedAttraction[];
+  stalls?: PlacedStall[];
+  staff?: StaffMember[];
+  trash?: TrashPile[];
+  parking?: ParkingSpot[];
+  visitors?: Visitor[];
+  /** Full tile grid + overlays — required for refresh restore */
+  grid?: {
+    width: number;
+    height: number;
+    tiles: TileKind[][];
+    bins: string[];
+    benches: string[];
+    decor: [string, DecorKind][];
+    gatePos: GridPos;
+    warehousePos: GridPos;
+  };
 }

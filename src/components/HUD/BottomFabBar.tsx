@@ -1,6 +1,7 @@
 import { BuildBankModal } from "../Panels/BuildBankModal";
 import { useState } from "react";
 import { useI18n } from "../../i18n/I18nContext";
+import { simulation } from "../../managers/Simulation";
 
 type FabId = "build" | "staff" | "logistics" | "quests" | "expand";
 
@@ -13,11 +14,26 @@ export function BottomFabBar() {
     window.dispatchEvent(new CustomEvent("cit-open-panel", { detail: { tab } }));
   };
 
+  const onQuests = () => {
+    // Do not open land-expansion — tip only.
+    if (!simulation.hasOutboundPathFromGate()) {
+      simulation.flashMessage(t("nextStepPath"));
+    } else if (simulation.state.starterKit.attractionLeft > 0) {
+      simulation.flashMessage(t("nextStepCarousel"));
+    } else if (simulation.bootstrapClockHeld()) {
+      simulation.flashMessage(t("nextStepConnect"));
+    } else if (simulation.state.starterKit.stallLeft > 0) {
+      simulation.flashMessage(t("nextStepStall"));
+    } else {
+      simulation.flashMessage(t("nextStepEarn"));
+    }
+  };
+
   const fabs: { id: FabId; icon: string; label: string; action: () => void; hotkey: string }[] = [
     { id: "build", icon: "⚒️", label: t("build"), action: () => setBankOpen(true), hotkey: "1" },
     { id: "staff", icon: "🛡️", label: t("staff"), action: () => openPanel("staff"), hotkey: "2" },
     { id: "logistics", icon: "📦", label: t("logistics"), action: () => openPanel("logistics"), hotkey: "3" },
-    { id: "quests", icon: "📜", label: t("quests"), action: () => openPanel("expand"), hotkey: "4" },
+    { id: "quests", icon: "📜", label: t("quests"), action: onQuests, hotkey: "4" },
     { id: "expand", icon: "🗺️", label: t("expand"), action: () => openPanel("expand"), hotkey: "5" },
   ];
 
@@ -33,7 +49,7 @@ export function BottomFabBar() {
               key={f.id}
               type="button"
               onClick={f.action}
-              data-testid={f.id === "build" ? "fab-build" : undefined}
+              data-testid={f.id === "build" ? "fab-build" : f.id === "quests" ? "fab-quests" : undefined}
               className={`${f.id === "build" ? "wow-action-slot wow-action-slot-active -mt-2 h-16 w-16" : "wow-action-slot"}`}
               title={`${f.label} [${f.hotkey}]`}
             >
