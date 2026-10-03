@@ -65,7 +65,8 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   const h = Math.max(1, container.clientHeight || 480);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#6a9bc2");
-  scene.fog = new THREE.FogExp2("#8eb4c8", 0.022);
+  // ערפל קל בלבד — חייב לראות דשא ואזורי בנייה, לא מסך עננים
+  scene.fog = new THREE.FogExp2("#8eb4c8", 0.008);
 
   /** זום = קרבה; רדיוס orbit בסיסי / zoom */
   const BASE_RADIUS = 22;
@@ -225,16 +226,17 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   meadow.receiveShadow = true;
   root.add(meadow);
 
-  // ים עננים תחתון — ממלא את כל שטח המפה כך שלא רואים «ריק»
+  // ים עננים תחתון — מתחת לאי בלבד, לא מכסה דשא/בנייה
   const seaCloudMat = new THREE.MeshStandardMaterial({
     color: 0xe8eef5,
     roughness: 1,
     transparent: true,
-    opacity: 0.95,
+    opacity: 0.72,
     flatShading: true,
+    depthWrite: false,
   });
-  const cloudSea = new THREE.Mesh(new THREE.CylinderGeometry(22, 22, 0.8, 28), seaCloudMat);
-  cloudSea.position.y = -0.55;
+  const cloudSea = new THREE.Mesh(new THREE.CylinderGeometry(24, 24, 0.6, 28), seaCloudMat);
+  cloudSea.position.y = -1.35;
   root.add(cloudSea);
 
   // שפת אחו מורמת / גבעות קטנות
@@ -409,7 +411,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       scene.background = new THREE.Color("#6a9bc2");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#8eb4c8");
-        scene.fog.density = 0.018;
+        scene.fog.density = 0.008;
       }
       farMat.color.set(0x6a8499);
       hemi.color.set(0xb8d4ef);
@@ -421,7 +423,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       scene.background = new THREE.Color("#5a8eb8");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#7aa3b8");
-        scene.fog.density = 0.016;
+        scene.fog.density = 0.007;
       }
       farMat.color.set(0x5a7088);
       hemi.color.set(0xc8d8ef);
@@ -432,7 +434,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       scene.background = new THREE.Color("#4a6a9a");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#6a88a8");
-        scene.fog.density = 0.014;
+        scene.fog.density = 0.006;
       }
       farMat.color.set(0x4a5a78);
       hemi.color.set(0xd0d8f0);
@@ -501,43 +503,56 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       }
     }
 
-    // אזורים נעולים / לא נפתחו — כיסוי עננים (לא רואים מה מתחת)
+    // אזורים נעולים — דשא מעומעם + ערפל שקוף (רואים קרקע; ברור מה לא לבנייה)
     if (cloudCells.length > 0) {
-      const cloudBaseMat = mat("fog_base", 0xd5e2ef, {
+      const lockedGrassMat = mat("fog_grass", 0x4a6e3a, {
         roughness: 1,
         transparent: true,
-        opacity: 0.97,
+        opacity: 0.55,
+      });
+      const mistMat = mat("fog_mist", 0xd5e2ef, {
+        roughness: 1,
+        transparent: true,
+        opacity: 0.32,
+        depthWrite: false,
       });
       const puffMat = mat("fog_puff", 0xf4f7fb, {
         roughness: 1,
         transparent: true,
-        opacity: 0.88,
+        opacity: 0.28,
+        depthWrite: false,
       });
-      const baseInst = new THREE.InstancedMesh(geoCache.cloudTile, cloudBaseMat, cloudCells.length);
+      const grassInst = new THREE.InstancedMesh(geoCache.tile, lockedGrassMat, cloudCells.length);
+      const mistInst = new THREE.InstancedMesh(geoCache.cloudTile, mistMat, cloudCells.length);
       const puffInst = new THREE.InstancedMesh(geoCache.cloudPuff, puffMat, cloudCells.length * 2);
       const dummy = new THREE.Object3D();
       cloudCells.forEach((c, i) => {
-        dummy.position.set(c.wx, 0.1, c.wz);
+        dummy.position.set(c.wx, 0.04, c.wz);
         dummy.scale.set(1, 1, 1);
         dummy.rotation.set(0, 0, 0);
         dummy.updateMatrix();
-        baseInst.setMatrixAt(i, dummy.matrix);
+        grassInst.setMatrixAt(i, dummy.matrix);
 
-        const h1 = 0.45 + (i % 5) * 0.06;
+        dummy.position.set(c.wx, 0.18, c.wz);
+        dummy.updateMatrix();
+        mistInst.setMatrixAt(i, dummy.matrix);
+
+        const h1 = 0.55 + (i % 5) * 0.08;
         dummy.position.set(c.wx + ((i % 3) - 1) * 0.12, h1, c.wz + ((i % 2) - 0.5) * 0.1);
-        dummy.scale.setScalar(0.85 + (i % 4) * 0.12);
+        dummy.scale.setScalar(0.7 + (i % 4) * 0.1);
         dummy.updateMatrix();
         puffInst.setMatrixAt(i * 2, dummy.matrix);
 
-        dummy.position.set(c.wx - 0.15, h1 + 0.2, c.wz + 0.12);
-        dummy.scale.setScalar(0.65 + (i % 3) * 0.1);
+        dummy.position.set(c.wx - 0.15, h1 + 0.25, c.wz + 0.12);
+        dummy.scale.setScalar(0.5 + (i % 3) * 0.08);
         dummy.updateMatrix();
         puffInst.setMatrixAt(i * 2 + 1, dummy.matrix);
       });
-      baseInst.instanceMatrix.needsUpdate = true;
+      grassInst.instanceMatrix.needsUpdate = true;
+      mistInst.instanceMatrix.needsUpdate = true;
       puffInst.instanceMatrix.needsUpdate = true;
-      baseInst.receiveShadow = true;
-      fogCloudsGroup.add(baseInst, puffInst);
+      grassInst.receiveShadow = true;
+      fogCloudsGroup.add(grassInst, mistInst, puffInst);
     }
 
     // שער פנטזיה — אבן + זהב (starting-zone portal), לא פלסטיק כחול
@@ -635,14 +650,15 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       const needRebuild =
         !obj ||
         obj.userData.broken !== a.broken ||
-        obj.userData.defId !== a.defId;
+        obj.userData.defId !== a.defId ||
+        obj.userData.tier !== a.tier;
       if (needRebuild) {
         if (obj) {
           entitiesGroup.remove(obj);
           entityMeshes.delete(key);
         }
         if (!def) continue;
-        obj = buildAttractionMesh(def, mat, a.broken);
+        obj = buildAttractionMesh(def, mat, a.broken, a.tier);
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
@@ -863,7 +879,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       scene.background = new THREE.Color("#0b1220");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#0b1220");
-        scene.fog.density = 0.028;
+        scene.fog.density = 0.012;
       }
       hemi.intensity = 0.25;
       sun.intensity = 0.25;
@@ -873,7 +889,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       scene.background = new THREE.Color("#c47a3a");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#c47a3a");
-        scene.fog.density = 0.02;
+        scene.fog.density = 0.01;
       }
       hemi.intensity = 0.45;
       sun.color.set("#ffb070");
@@ -883,7 +899,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       scene.background = new THREE.Color(daySky);
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set(dayFog);
-        scene.fog.density = tier === 2 ? 0.014 : tier === 1 ? 0.016 : 0.018;
+        scene.fog.density = tier === 2 ? 0.006 : tier === 1 ? 0.007 : 0.008;
       }
       hemi.intensity = 0.55;
       sun.intensity = tier === 0 ? 1.35 : tier === 1 ? 1.45 : 1.55;
