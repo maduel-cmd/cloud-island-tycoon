@@ -1,5 +1,5 @@
 /* Minimal service worker — enables installability (Add to Home Screen / desktop app) */
-const CACHE = "cit-shell-v1";
+const CACHE = "cit-shell-v7-merged-icons";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",

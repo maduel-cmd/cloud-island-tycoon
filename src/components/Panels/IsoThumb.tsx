@@ -1,4 +1,7 @@
-/** תצוגה מקדימה איזומטרית קטנה לכרטיסי בנק המתקנים */
+/** תצוגה מקדימה לכרטיסי בנק המתקנים — ציור look לפי id כשיש, אחרת SVG */
+
+import { useEffect, useState } from "react";
+import { bankLookSrc, type BankLookKind } from "./bankLook";
 
 export type ThumbShape =
   | "coaster"
@@ -24,6 +27,8 @@ export function IsoThumb({
   accent = "#fbbf24",
   locked = false,
   size = 88,
+  lookKind,
+  lookId,
   artSrc,
 }: {
   shape: ThumbShape;
@@ -31,21 +36,40 @@ export function IsoThumb({
   accent?: string;
   locked?: boolean;
   size?: number;
+  /** When set with lookId, prefer the shipped look still over SVG silhouettes. */
+  lookKind?: BankLookKind;
+  lookId?: string;
   /** Transparent build-bank card art when available */
   artSrc?: string;
 }) {
-  if (artSrc) {
+  const lookSrc = lookKind && lookId ? bankLookSrc(lookKind, lookId) : null;
+  const [lookFailed, setLookFailed] = useState(false);
+  useEffect(() => {
+    setLookFailed(false);
+  }, [lookSrc]);
+  const showLook = Boolean(lookSrc) && !lookFailed;
+  const imageSrc = showLook ? lookSrc! : artSrc;
+
+  if (imageSrc) {
     return (
       <div
         className={`relative flex items-center justify-center overflow-hidden rounded-xl bg-transparent ${locked ? "grayscale contrast-75" : ""}`}
         style={{ width: size, height: size * 0.85 }}
       >
         <img
-          src={artSrc}
+          src={imageSrc}
           alt=""
-          draggable={false}
           className="h-full w-full object-contain"
+          draggable={false}
+          onError={() => {
+            if (showLook) setLookFailed(true);
+          }}
         />
+        {locked && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 text-3xl drop-shadow">
+            🔒
+          </div>
+        )}
       </div>
     );
   }

@@ -5,6 +5,7 @@ import { DECOR } from "../../data/decor";
 import { useGameStore } from "../../state/useGameStore";
 import { useI18n } from "../../i18n/I18nContext";
 import { IsoThumb, type ThumbShape } from "./IsoThumb";
+import { resolveBankLook, type BankLookRef } from "./bankLook";
 import {
   attractionDisplayName,
   stallDisplayName,
@@ -27,6 +28,8 @@ type BankCard = {
   locked: boolean;
   unlockHint: string;
   shape: ThumbShape;
+  /** Shipped look still under public/assets/looks — null keeps SVG fallback. */
+  look: BankLookRef | null;
   moodEffect: number;
   incomeHint: number;
   staffNeeded: number;
@@ -89,6 +92,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: false,
           unlockHint: "",
           shape: "stall" as ThumbShape,
+          look: resolveBankLook("stall", s.id),
           moodEffect: s.buyMoodBoost ?? 8,
           incomeHint: s.productPrice,
           staffNeeded: 1,
@@ -113,6 +117,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: false,
           unlockHint: "",
           shape: "path" as ThumbShape,
+          look: resolveBankLook("util", "path"),
           moodEffect: 2,
           incomeHint: 0,
           staffNeeded: 0,
@@ -134,6 +139,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: false,
           unlockHint: "",
           shape: "bin" as ThumbShape,
+          look: resolveBankLook("util", "bin"),
           moodEffect: 6,
           incomeHint: 0,
           staffNeeded: 0,
@@ -152,6 +158,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: false,
           unlockHint: "",
           shape: "bench" as ThumbShape,
+          look: resolveBankLook("util", "bench"),
           moodEffect: 5,
           incomeHint: 0,
           staffNeeded: 0,
@@ -169,6 +176,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: false,
           unlockHint: "",
           shape: "parking" as ThumbShape,
+          look: resolveBankLook("util", "parking"),
           moodEffect: 1,
           incomeHint: 0,
           staffNeeded: 0,
@@ -186,6 +194,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: store.warehouseBuilt,
           unlockHint: store.warehouseBuilt ? t("builtAlready") : "",
           shape: "warehouse" as ThumbShape,
+          look: resolveBankLook("util", "warehouse"),
           moodEffect: 0,
           incomeHint: 0,
           staffNeeded: 0,
@@ -203,6 +212,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: false,
           unlockHint: "",
           shape: "hire" as ThumbShape,
+          look: resolveBankLook("util", "hire_janitor"),
           moodEffect: 10,
           incomeHint: 0,
           staffNeeded: 0,
@@ -221,6 +231,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: false,
           unlockHint: "",
           shape: "hire" as ThumbShape,
+          look: resolveBankLook("util", "hire_runner"),
           moodEffect: 4,
           incomeHint: 0,
           staffNeeded: 0,
@@ -239,6 +250,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: store.parkLevel < 2,
           unlockHint: unlockLabel(2),
           shape: "hire" as ThumbShape,
+          look: resolveBankLook("util", "hire_mechanic"),
           moodEffect: 8,
           incomeHint: 0,
           staffNeeded: 0,
@@ -258,6 +270,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
           locked: false,
           unlockHint: "",
           shape: "generic",
+          look: resolveBankLook("util", `decor:${d.id}`),
           moodEffect: Math.round(d.moodPerSec * 10),
           incomeHint: 0,
           staffNeeded: 0,
@@ -289,6 +302,7 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
         locked: unlock.locked,
         unlockHint: unlock.hint,
         shape: (a.shape as ThumbShape) || "generic",
+        look: resolveBankLook("attraction", a.id),
         moodEffect: Math.round(a.excitementScore / 10),
         incomeHint: a.baseTicketPrice,
         staffNeeded: a.footprint.w >= 3 ? 2 : 1,
@@ -413,7 +427,16 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                       : "border-[color:var(--wow-border)] hover:border-[color:var(--wow-gold-dim)] hover:bg-[#241c14]"
                   }`}
                 >
-                  <IsoThumb shape={c.shape} color={c.color} accent={c.accent} locked={c.locked} size={96} artSrc={c.artSrc} />
+                  <IsoThumb
+                    shape={c.shape}
+                    color={c.color}
+                    accent={c.accent}
+                    locked={c.locked}
+                    size={96}
+                    lookKind={c.look?.kind}
+                    lookId={c.look?.id}
+                    artSrc={c.artSrc}
+                  />
                   <div className="mt-1.5 line-clamp-2 text-[11px] font-bold leading-tight text-[color:var(--wow-parchment)] sm:text-xs">
                     {c.name}
                   </div>
@@ -443,6 +466,8 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                     accent={selected.accent}
                     locked={selected.locked}
                     size={140}
+                    lookKind={selected.look?.kind}
+                    lookId={selected.look?.id}
                     artSrc={selected.artSrc}
                   />
                 </div>
@@ -498,6 +523,8 @@ export function BuildBankModal({ open, onClose }: { open: boolean; onClose: () =
                 accent={selected.accent}
                 locked={selected.locked}
                 size={56}
+                lookKind={selected.look?.kind}
+                lookId={selected.look?.id}
               />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold text-[color:var(--wow-parchment)]">{selected.name}</div>

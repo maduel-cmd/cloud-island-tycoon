@@ -16,10 +16,11 @@ export function ToastMessage() {
       return;
     }
     setVisible(true);
+    const longLived = /מחסן|warehouse|יהלומ|gem|משכור|wage|סגירת יום|day close/i.test(message);
     const t = window.setTimeout(() => {
       setVisible(false);
       simulation.state.message = null;
-    }, 2800);
+    }, longLived ? 5200 : 3200);
     return () => window.clearTimeout(t);
   }, [message]);
 
@@ -29,7 +30,10 @@ export function ToastMessage() {
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-[4.75rem] z-[45] flex justify-center px-3 sm:bottom-6">
-      <div className="cit-card max-w-[min(92vw,360px)] rounded px-3 py-2 text-center text-xs font-semibold text-[color:var(--cit-text)] sm:text-sm">
+      <div
+        className="cit-card max-w-[min(92vw,360px)] rounded px-3 py-2 text-center text-xs font-semibold text-[color:var(--cit-text)] sm:text-sm"
+        data-testid="toast-message"
+      >
         {text}
       </div>
     </div>

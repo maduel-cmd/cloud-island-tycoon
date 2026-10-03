@@ -36,6 +36,11 @@ const VISITOR_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "
 const CAR_COLORS = ["#ef4444", "#3b82f6", "#eab308", "#38bdf8", "#f97316", "#84cc16"];
 const NIGHT_WAGE_PER_STAFF = 40;
 
+/** Gem-only instant ride repair — cash cannot buy this */
+export const GEM_REPAIR_COST = 3;
+/** Nightly wage per staff member (same as night wage preview) */
+export const STAFF_WAGE = NIGHT_WAGE_PER_STAFF;
+
 let uidSeq = 1;
 function uid(prefix: string): string {
   return `${prefix}_${uidSeq++}`;
@@ -143,19 +148,29 @@ const BIN_RADIUS = 2;
 /** Cost to place a park bench */
 const BENCH_COST = 80;
 
+export interface LoopGoals {
+  path: boolean;
+  ride: boolean;
+  stockedStall: boolean;
+}
+
 export class Simulation {
   grid = new GridSystem();
   engine = new Engine();
   state: SimState;
   private listeners = new Set<() => void>();
   private occupy = new Set<string>();
+  private persistEnabled = true;
 
-  constructor() {
+  constructor(opts?: { skipLoad?: boolean; skipPersist?: boolean }) {
     this.state = this.freshState();
     this.seedStarterPark();
-    const saved = typeof localStorage !== "undefined" ? readSave() : null;
-    if (saved?.grid?.tiles?.length) {
-      this.applySnapshot(saved);
+    this.persistEnabled = opts?.skipPersist !== true;
+    if (!opts?.skipLoad) {
+      const saved = typeof localStorage !== "undefined" ? readSave() : null;
+      if (saved?.grid?.tiles?.length) {
+        this.applySnapshot(saved);
+      }
     }
     this.engine.on((dt) => this.tick(dt));
   }
@@ -440,8 +455,33 @@ export class Simulation {
   }
 
   private persist(): void {
+    if (!this.persistEnabled) return;
     if (typeof localStorage === "undefined") return;
     writeSave(this.toSnapshot());
+  }
+
+  /** First-loop goals: path beyond the gate, a ride, and a stall that has stock. */
+  getLoopGoals(): LoopGoals {
+    return {
+      path: this.hasOutboundPathFromGate(),
+      ride: this.state.attractions.length > 0,
+      stockedStall: this.state.stalls.some((s) => s.stock > 0),
+    };
+  }
+
+  /** True once the bootstrap clock is released (gate→open ride connected). */
+  get operationsStarted(): boolean {
+    return !this.bootstrapClockHeld() || Boolean(this.state.daySummary) || this.state.gameOver;
+  }
+
+  fireStaff(id: string): boolean {
+    const idx = this.state.staff.findIndex((s) => s.id === id);
+    if (idx < 0) return false;
+    this.state.staff.splice(idx, 1);
+    this.state.message = "עובד פוטר";
+    this.notify();
+    this.persistSoon();
+    return true;
   }
 
   private seedStarterPark(): void {
@@ -509,6 +549,7 @@ export class Simulation {
 
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private persistSoon(): void {
+    if (!this.persistEnabled) return;
     if (typeof localStorage === "undefined") return;
     if (this.persistTimer) clearTimeout(this.persistTimer);
     this.persistTimer = setTimeout(() => {
@@ -565,6 +606,13 @@ export class Simulation {
   flashMessage(msg: string): void {
     this.state.message = msg;
     this.notify();
+  }
+
+  /** Leave build mode without wiping the success toast (path mode stays for drag-paint). */
+  private exitBuildMode(): void {
+    if (this.state.buildMode === "path") return;
+    this.state.buildMode = "none";
+    this.state.selectedBuildId = null;
   }
 
   selectEntity(kind: "attraction" | "stall" | "staff", id: string): void {
@@ -673,6 +721,7 @@ export class Simulation {
       : connected
         ? `נבנה: ${def.nameHe}`
         : `נבנה: ${def.nameHe} — בלי שביל המבקרים לא יגיעו. סללו שביל!`;
+    this.exitBuildMode();
     this.notify();
     return true;
   }
@@ -721,6 +770,7 @@ export class Simulation {
       : connected
         ? `נפתח: ${def.nameHe}`
         : `נפתח: ${def.nameHe} — בלי שביל הלקוחות לא יגיעו!`;
+    this.exitBuildMode();
     this.notify();
     return true;
   }
@@ -1179,16 +1229,24 @@ export class Simulation {
     this.notify();
   }
 
+  /**
+   * Instant repair — gems only (cash cannot buy this).
+   * Mechanics can still fix rides slowly via staff labor.
+   */
   repairAttraction(uidStr: string): void {
     const a = this.state.attractions.find((x) => x.uid === uidStr);
-    if (!a) return;
-    const cost = 350;
-    if (this.state.cash < cost) return;
-    this.state.cash -= cost;
+    if (!a || !a.broken) return;
+    if (this.state.gems < GEM_REPAIR_COST) {
+      this.state.message = `תיקון מיידי עולה ${GEM_REPAIR_COST} יהלומים (לא ניתן במזומן)`;
+      this.notify();
+      return;
+    }
+    this.state.gems -= GEM_REPAIR_COST;
     a.durability = 100;
     a.broken = false;
-    this.state.message = "המתקן תוקן";
+    this.state.message = `המתקן תוקן מיידית (−${GEM_REPAIR_COST} יהלומים)`;
     this.notify();
+    this.persistSoon();
   }
 
   // ——— Simulation tick ———
@@ -2282,6 +2340,10 @@ export class Simulation {
 
   tickSatisfactionForTest(): void {
     this.updateSatisfaction(0);
+  }
+
+  tickForTest(dt: number): void {
+    this.tick(dt);
   }
 }
 

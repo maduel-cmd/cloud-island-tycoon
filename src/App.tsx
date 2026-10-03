@@ -2,6 +2,7 @@ import { ThreeGameView } from "./components/ThreeGameView";
 import { TopBar } from "./components/HUD/TopBar";
 import { BottomFabBar } from "./components/HUD/BottomFabBar";
 import { ZoomControls } from "./components/HUD/ZoomControls";
+import { LoopGoalsHud } from "./components/HUD/LoopGoalsHud";
 import { SidePanels } from "./components/Panels/SidePanels";
 import { ToastMessage } from "./components/Modals/ToastMessage";
 import { WelcomeModal } from "./components/Modals/WelcomeModal";
@@ -19,6 +20,7 @@ function AppShell() {
       </div>
 
       <TopBar />
+      <LoopGoalsHud />
       <ToastMessage />
       <ZoomControls />
       <SidePanels />

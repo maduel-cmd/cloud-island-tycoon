@@ -31,6 +31,12 @@ export function BottomFabBar() {
   };
 
   const onQuests = () => {
+    window.dispatchEvent(new CustomEvent("cit-focus-goals"));
+    const el = document.querySelector("[data-testid='loop-goals']");
+    if (el instanceof HTMLElement) {
+      el.classList.add("ring-2", "ring-[color:var(--wow-gold)]");
+      window.setTimeout(() => el.classList.remove("ring-2", "ring-[color:var(--wow-gold)]"), 1200);
+    }
     if (!simulation.hasOutboundPathFromGate()) {
       simulation.flashMessage(t("nextStepPath"));
     } else if (simulation.state.starterKit.attractionLeft > 0) {
@@ -44,12 +50,12 @@ export function BottomFabBar() {
     }
   };
 
-  const fabs: { id: FabId; label: string; action: () => void }[] = [
-    { id: "build", label: t("build"), action: () => setBankOpen(true) },
-    { id: "staff", label: t("staff"), action: () => openPanel("staff") },
-    { id: "logistics", label: t("logistics"), action: () => openPanel("logistics") },
-    { id: "quests", label: t("quests"), action: onQuests },
-    { id: "expand", label: t("expand"), action: () => openPanel("expand") },
+  const fabs: { id: FabId; label: string; action: () => void; hotkey: string }[] = [
+    { id: "build", label: t("build"), action: () => setBankOpen(true), hotkey: "1" },
+    { id: "staff", label: t("staff"), action: () => openPanel("staff"), hotkey: "2" },
+    { id: "logistics", label: t("logistics"), action: () => openPanel("logistics"), hotkey: "3" },
+    { id: "quests", label: t("quests"), action: onQuests, hotkey: "4" },
+    { id: "expand", label: t("expand"), action: () => openPanel("expand"), hotkey: "5" },
   ];
 
   return (
@@ -70,7 +76,7 @@ export function BottomFabBar() {
                 onClick={f.action}
                 data-testid={f.id === "build" ? "fab-build" : f.id === "quests" ? "fab-quests" : undefined}
                 className="flex flex-col items-center gap-0.5 border-0 bg-transparent p-0 transition hover:brightness-110 active:scale-95"
-                title={f.label}
+                title={`${f.label} [${f.hotkey}]`}
                 aria-label={f.label}
               >
                 <img

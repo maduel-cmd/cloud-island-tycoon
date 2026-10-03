@@ -191,6 +191,52 @@ export class GridSystem {
     this.tiles[y]![x] = kind;
   }
 
+  /** Snapshot for local full-session save (tiles, plots, bins, benches, decor). */
+  captureSnapshot(): {
+    tiles: TileKind[][];
+    plots: { id: string; unlocked: boolean }[];
+    bins: string[];
+    benches: string[];
+    decor: [string, DecorKind][];
+    warehousePos: GridPos;
+  } {
+    return {
+      tiles: this.tiles.map((row) => row.slice() as TileKind[]),
+      plots: this.plots.map((p) => ({ id: p.id, unlocked: p.unlocked })),
+      bins: [...this.bins],
+      benches: [...this.benches],
+      decor: [...this.decor.entries()],
+      warehousePos: { ...this.warehousePos },
+    };
+  }
+
+  /** Restore grid from a local save without rebuilding the whole GridSystem. */
+  applySnapshot(snap: {
+    tiles: TileKind[][];
+    plots: { id: string; unlocked: boolean }[];
+    bins: string[];
+    benches: string[];
+    decor: [string, DecorKind][];
+    warehousePos: GridPos;
+  }): void {
+    if (
+      !Array.isArray(snap.tiles) ||
+      snap.tiles.length !== this.height ||
+      snap.tiles.some((row) => !row || row.length !== this.width)
+    ) {
+      return;
+    }
+    this.tiles = snap.tiles.map((row) => row.slice() as TileKind[]);
+    for (const p of snap.plots ?? []) {
+      const plot = this.plots.find((x) => x.id === p.id);
+      if (plot) plot.unlocked = Boolean(p.unlocked);
+    }
+    this.bins = new Set(snap.bins ?? []);
+    this.benches = new Set(snap.benches ?? []);
+    this.decor = new Map(snap.decor ?? []);
+    if (snap.warehousePos) this.warehousePos = { ...snap.warehousePos };
+  }
+
   isWalkable(p: GridPos): boolean {
     const t = this.get(p.x, p.y);
     return t === "path" || t === "road" || t === "parking";

@@ -37,6 +37,7 @@ export function useGameStore(): SimState & {
   repairAttraction: (id: string) => void;
   clearSelection: () => void;
   selectEntity: (kind: "attraction" | "stall" | "staff", id: string) => void;
+  fireStaff: (id: string) => boolean;
   nightWageCost: () => number;
   setTicketGateFee: (fee: number) => void;
   confirmDayEnd: (skipWagesWithGem: boolean) => void;
@@ -63,6 +64,7 @@ export function useGameStore(): SimState & {
     repairAttraction: (id) => simulation.repairAttraction(id),
     clearSelection: () => simulation.clearSelection(),
     selectEntity: (kind, id) => simulation.selectEntity(kind, id),
+    fireStaff: (id) => simulation.fireStaff(id),
     nightWageCost: () => simulation.nightWageCost(),
     setTicketGateFee: (fee) => simulation.setTicketGateFee(fee),
     confirmDayEnd: (skip) => simulation.confirmDayEnd(skip),
