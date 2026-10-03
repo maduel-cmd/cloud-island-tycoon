@@ -29,3 +29,6 @@ coverage/
 backups/
 *.zip
 .netlify/
+
+# Local Nano Banana unpacks (still packs stay out of git; applied looks live under public/)
+uploads/

@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import type { StaffRole } from "../data/types";
 import { type MatFn, BRIGHT, addShadow, hexToNum } from "./parkStyle";
-import { tryApplyEntityLook } from "./parkLooks";
+import { tryApplyEntityLook, animateLookBillboard } from "./parkLooks";
 
 const ROLE_COLOR: Record<StaffRole, number> = {
   janitor: 0x2563eb,
@@ -91,6 +91,25 @@ export function animateStaff(
   moving: boolean,
 ): void {
   obj.rotation.y = FACE_YAW[facing] ?? 0;
+  if (obj.userData.hasLookImage) {
+    const look = obj.getObjectByName("lookBillboard");
+    if (look) {
+      if (obj.userData.lookBaseY == null) obj.userData.lookBaseY = look.position.y;
+      const base = obj.userData.lookBaseY as number;
+      if (moving) {
+        look.position.y = base + Math.abs(Math.sin(walkPhase * 2)) * 0.07;
+        look.rotation.z = Math.sin(walkPhase) * 0.08;
+      } else if (repairing) {
+        look.position.y = base - 0.12 + Math.sin(walkPhase) * 0.04;
+        look.rotation.z = Math.sin(walkPhase * 3) * 0.2;
+      } else {
+        look.position.y = base;
+        look.rotation.y = Math.sin(walkPhase * 1.5) * 0.25; // idle sweep / sway
+        look.rotation.z = 0;
+      }
+    }
+    return;
+  }
   const legL = obj.getObjectByName("legL");
   const legR = obj.getObjectByName("legR");
   const body = obj.getObjectByName("body");
@@ -172,6 +191,10 @@ export function buildBinMesh(mat: MatFn, tier = 1): THREE.Group {
 }
 
 export function animateBin(obj: THREE.Object3D, time: number, hasTrash: boolean): void {
+  if (obj.userData.hasLookImage) {
+    animateLookBillboard(obj, 0.016, time);
+    return;
+  }
   const lid = obj.getObjectByName("lid");
   const bag = obj.getObjectByName("bag");
   if (lid) lid.rotation.x = Math.sin(time * 1.2) * 0.12;
@@ -210,6 +233,10 @@ export function buildBenchMesh(mat: MatFn, tier = 1): THREE.Group {
 }
 
 export function animateBench(obj: THREE.Object3D, time: number): void {
+  if (obj.userData.hasLookImage) {
+    animateLookBillboard(obj, 0.016, time);
+    return;
+  }
   const cloth = obj.getObjectByName("cloth");
   if (cloth) cloth.rotation.z = Math.sin(time * 2) * 0.08;
 }
@@ -342,6 +369,10 @@ export function buildDecorMesh(mat: MatFn, kind: string, key: string, tier = 1):
 }
 
 export function animateDecor(obj: THREE.Object3D, time: number): void {
+  if (obj.userData.hasLookImage) {
+    animateLookBillboard(obj, 0.016, time);
+    return;
+  }
   const sway = obj.userData.sway as THREE.Object3D | undefined;
   if (sway) {
     sway.rotation.z = Math.sin(time * 1.8) * 0.08;
@@ -384,10 +415,15 @@ export function buildWarehouseMesh(mat: MatFn, tier = 1): THREE.Group {
     g.add(wing);
   }
   addShadow(g);
+  tryApplyEntityLook(g, "prop", "warehouse");
   return g;
 }
 
 export function setWarehouseDoorOpen(obj: THREE.Object3D, open: boolean, time: number): void {
+  if (obj.userData.hasLookImage) {
+    animateLookBillboard(obj, 0.016, time);
+    return;
+  }
   const door = obj.getObjectByName("door");
   if (!door) return;
   const target = open ? -1.15 : 0;

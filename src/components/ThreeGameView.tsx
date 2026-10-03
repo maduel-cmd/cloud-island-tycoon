@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { keyOf } from "../core/GridSystem";
 import { warmAssetBank } from "../assets/AssetLoader";
+import { warmAllLooks } from "../three/parkLooks";
 import { mountThreePark, type ThreeParkHandle } from "../three/ThreeParkWorld";
 import { simulation } from "../managers/Simulation";
 
@@ -16,6 +17,7 @@ export function ThreeGameView() {
     if (!el) return;
 
     warmAssetBank();
+    warmAllLooks();
     const park = mountThreePark(el);
     let raf = 0;
     let last = performance.now();

@@ -15,7 +15,7 @@ import {
   stoneBase,
   emissiveAccent,
 } from "./parkStyle";
-import { tryApplyEntityLook } from "./parkLooks";
+import { tryApplyEntityLook, animateLookBillboard } from "./parkLooks";
 
 export type { MatFn } from "./parkStyle";
 
@@ -1130,10 +1130,9 @@ export function buildAttractionMesh(
 
 export function animateAttraction(obj: THREE.Object3D, dt: number, broken: boolean, time: number): void {
   if (broken) return;
-  const look = obj.getObjectByName("lookBillboard");
-  if (look) {
-    // soft sway so the look plate stays lively without replacing ride cycles
-    look.rotation.y = Math.sin(time * 0.7) * 0.08;
+  if (obj.userData.hasLookImage) {
+    animateLookBillboard(obj, dt, time);
+    return;
   }
   const cycles = obj.userData.cycles as Cycle[] | undefined;
   if (!cycles) return;
@@ -1386,8 +1385,7 @@ export function buildStallMesh(def: StallDef, mat: MatFn, tier = 1): THREE.Group
     g.userData.defId = def.id;
     g.userData.tier = t;
     addShadow(g);
-    // Prefer existing balloon tile when present; otherwise looks/stall/balloon_vendor.*
-    tryApplyEntityLook(g, "stall", def.id, undefined, "/assets/balloon-vendor-tile.jpg");
+    tryApplyEntityLook(g, "stall", def.id);
     return g;
   }
 

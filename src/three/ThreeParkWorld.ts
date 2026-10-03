@@ -16,6 +16,7 @@ import {
   buildAttractionMesh,
   buildStallMesh,
 } from "./RideMeshes";
+import { tryApplyEntityLook, warmLook } from "./parkLooks";
 import {
   animateBench,
   animateBin,
@@ -33,6 +34,17 @@ import {
   setTrashAmount,
   setWarehouseDoorOpen,
 } from "./ParkProps";
+
+/** Re-apply look once the still finishes loading (mesh may have been built earlier). */
+function ensureLook(
+  obj: THREE.Group,
+  kind: "attraction" | "stall" | "prop" | "staff",
+  id: string,
+  footprint?: { w: number; h: number },
+): void {
+  if (obj.userData.hasLookImage) return;
+  tryApplyEntityLook(obj, kind, id, footprint);
+}
 
 export const THREE_ZOOM_MIN = 0.35;
 export const THREE_ZOOM_MAX = 3.5;
@@ -358,6 +370,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   let hoverMesh: THREE.Mesh | null = null;
   let lastTileSig = "";
   let visitorTex: THREE.Texture | null = null;
+  let pathLookTex: THREE.Texture | null = null;
   const texLoader = new THREE.TextureLoader();
   const visitorSheetSrc = GAME_STATIC_ASSETS.VISITOR_SHEET?.src;
   if (visitorSheetSrc) {
@@ -480,13 +493,23 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
 
   const rebuildTiles = (sim: Simulation) => {
     const g = sim.grid;
+    // Path still → tile look once the image finishes loading (rebuild then).
+    const pathImg = warmLook("prop", "path");
+    if (pathImg && !pathLookTex) {
+      pathLookTex = new THREE.Texture(pathImg);
+      pathLookTex.colorSpace = THREE.SRGBColorSpace;
+      pathLookTex.needsUpdate = true;
+      pathLookTex.wrapS = THREE.RepeatWrapping;
+      pathLookTex.wrapT = THREE.RepeatWrapping;
+      lastTileSig = "";
+    }
     let sig = `${g.width}x${g.height}|`;
     for (let y = 0; y < g.height; y++) {
       for (let x = 0; x < g.width; x++) {
         sig += g.get(x, y)[0];
       }
     }
-    sig += `|p${g.plots.filter((p) => p.unlocked).length}|w${sim.state.warehouseBuilt ? 1 : 0}|L${sim.state.parkLevel}`;
+    sig += `|p${g.plots.filter((p) => p.unlocked).length}|w${sim.state.warehouseBuilt ? 1 : 0}|L${sim.state.parkLevel}|pl${pathLookTex ? 1 : 0}`;
     if (sig === lastTileSig) return;
     lastTileSig = sig;
 
@@ -514,7 +537,25 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
           continue;
         }
         const color = TILE_COLORS[kind] ?? 0x58c944;
-        const mesh = new THREE.Mesh(geoCache.tile, mat(`t_${kind}`, color));
+        const pathMat =
+          kind === "path" && pathLookTex
+            ? (() => {
+                const k = "t_path_look";
+                let m = matCache.get(k);
+                if (!m) {
+                  m = new THREE.MeshStandardMaterial({
+                    map: pathLookTex,
+                    color: 0xffffff,
+                    flatShading: true,
+                    roughness: 0.92,
+                    metalness: 0.04,
+                  });
+                  matCache.set(k, m);
+                }
+                return m;
+              })()
+            : mat(`t_${kind}`, color);
+        const mesh = new THREE.Mesh(geoCache.tile, pathMat);
         mesh.position.set(p.x, kind === "path" || kind === "parking" || kind === "road" ? 0.12 : 0.05, p.z);
         mesh.receiveShadow = true;
         mesh.userData = { gx: x, gy: y, kind };
@@ -739,6 +780,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
+      ensureLook(obj!, "attraction", a.defId, def?.footprint);
       const fw = def?.footprint.w ?? 1;
       const fh = def?.footprint.h ?? 1;
       const p = gridToWorld(a.pos.x + fw / 2 - 0.5, a.pos.y + fh / 2 - 0.5, 0);
@@ -762,6 +804,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
+      ensureLook(obj!, "stall", s.defId);
       const p = gridToWorld(s.pos.x, s.pos.y, 0);
       obj!.position.set(p.x, 0.12, p.z);
       animateStall(obj!, dt, animTime);
@@ -781,6 +824,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
+      ensureLook(obj, "prop", "bin");
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
       obj.position.set(p.x, 0, p.z);
@@ -801,6 +845,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
+      ensureLook(obj, "prop", "bench");
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
       obj.position.set(p.x, 0, p.z);
@@ -822,6 +867,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
+      ensureLook(obj, "prop", kind);
       const [x, y] = k.split(",").map(Number);
       const p = gridToWorld(x!, y!, 0);
       obj.position.set(p.x, 0, p.z);
@@ -912,6 +958,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         entitiesGroup.add(obj);
         entityMeshes.set(key, obj);
       }
+      ensureLook(obj, "staff", st.role);
       const p = pixelToWorld(st.pixel.x, st.pixel.y, 0);
       obj.position.set(p.x, 0, p.z);
       const repairing = st.role === "mechanic" && st.busyTimer > 0;
@@ -956,6 +1003,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     // מחסן — דלת נפתחת כשרץ ליד המחסן
     const wh = entityMeshes.get("warehouse");
     if (wh && wh.visible) {
+      ensureLook(wh as THREE.Group, "prop", "warehouse");
       const wp = sim.grid.warehousePos;
       const runnerIn =
         sim.state.warehouseBuilt &&
