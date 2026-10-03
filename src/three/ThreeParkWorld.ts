@@ -972,13 +972,13 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         orbitYaw -= dx * 0.0055;
         orbitPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, orbitPitch + dy * 0.004));
       } else {
-        // pan במישור העולם לפי כיוון המצלמה
+        // pan: המבט עוקב אחרי האצבע/העכבר (ימינה→ימינה, למטה→למטה)
         const radius = BASE_RADIUS / zoom;
         const scale = radius * 0.0026;
         const forward = new THREE.Vector3(Math.sin(orbitYaw), 0, Math.cos(orbitYaw));
         const right = new THREE.Vector3(Math.cos(orbitYaw), 0, -Math.sin(orbitYaw));
-        camTarget.addScaledVector(right, -dx * scale);
-        camTarget.addScaledVector(forward, dy * scale);
+        camTarget.addScaledVector(right, dx * scale);
+        camTarget.addScaledVector(forward, -dy * scale);
       }
       updateCamera();
     },
