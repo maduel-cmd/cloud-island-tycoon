@@ -21,10 +21,30 @@ describe("RideMeshes shape builders", () => {
     const shapes = new Set(ATTRACTIONS.map((a) => a.shape));
     assert.ok(shapes.size >= 7);
     for (const def of ATTRACTIONS) {
-      const g = buildAttractionMesh(def, mat, false);
+      const g = buildAttractionMesh(def, mat, false, 1);
       assert.ok(g.children.length >= 2, `${def.id} too plain`);
       assert.equal(g.userData.shape, def.shape);
+      assert.equal(g.userData.tier, 1);
+      const hasMotion = Boolean(g.userData.spin) || Boolean(g.userData.bob);
+      assert.ok(hasMotion, `${def.id} (${def.shape}) needs moving parts`);
       animateAttraction(g, 0.016, false, 1.2);
+    }
+  });
+
+  it("makes each of 5 tiers visibly more grandiose", () => {
+    const def = ATTRACTIONS.find((a) => a.shape === "carousel") ?? ATTRACTIONS[0]!;
+    const counts: number[] = [];
+    for (let tier = 1; tier <= 5; tier++) {
+      const g = buildAttractionMesh(def, mat, false, tier);
+      assert.equal(g.userData.tier, tier);
+      counts.push(g.children.length);
+      assert.ok(g.scale.x >= 1 + (tier - 1) * 0.09 - 0.001);
+    }
+    for (let i = 1; i < counts.length; i++) {
+      assert.ok(
+        counts[i]! > counts[i - 1]!,
+        `tier ${i + 1} should add ornaments (${counts[i]} vs ${counts[i - 1]})`,
+      );
     }
   });
 

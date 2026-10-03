@@ -103,7 +103,7 @@ function addShadow(m: THREE.Object3D): void {
   });
 }
 
-/** רכבת הרים — מסילת ברזל על מבצר אבן */
+/** רכבת הרים — מסילת ברזל על מבצר אבן + קרון נע */
 function buildCoaster(mat: MatFn, key: string, color: number, accent: number, fw: number, fh: number): THREE.Group {
   const g = new THREE.Group();
   dressFantasyPlinth(g, mat, key, fw, fh);
@@ -127,14 +127,17 @@ function buildCoaster(mat: MatFn, key: string, color: number, accent: number, fw
   dip.rotation.set(Math.PI / 2.2, 0.4, 0.6);
   dip.position.set(0.35, 1.1, 0.35);
   g.add(dip);
+  const carArm = new THREE.Group();
+  carArm.name = "spin";
+  carArm.position.set(0.1, 1.55, -0.1);
   const car = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.22, 0.28), mat(`${key}_car`, accent));
-  car.position.set(-0.55, 1.75, -0.2);
-  g.add(car);
-  const spin = new THREE.Group();
-  spin.name = "spin";
-  g.add(spin);
-  g.userData.spin = spin;
-  g.userData.spinSpeed = 0.9;
+  car.position.set(0.75, 0.1, 0);
+  const carRoof = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.24), mat(`${key}_carR`, GOLD, { metalness: 0.4 }));
+  carRoof.position.set(0.75, 0.24, 0);
+  carArm.add(car, carRoof);
+  g.add(carArm);
+  g.userData.spin = carArm;
+  g.userData.spinSpeed = 1.35;
   return g;
 }
 
@@ -323,7 +326,7 @@ function buildCups(mat: MatFn, key: string, color: number, accent: number, fw: n
   return g;
 }
 
-/** מתקן מים — מזרקת אבן + מגלשה */
+/** מתקן מים — מזרקת אבן + מגלשה + מים מסתובבים */
 function buildWater(mat: MatFn, key: string, color: number, accent: number, fw: number, fh: number): THREE.Group {
   const g = new THREE.Group();
   dressFantasyPlinth(g, mat, key, fw, fh);
@@ -347,11 +350,42 @@ function buildWater(mat: MatFn, key: string, color: number, accent: number, fw: 
   slide.rotation.set(0.9, 0.4, -0.5);
   slide.position.set(0.15, 1.1, 0.1);
   g.add(slide);
-  void color;
+
+  const spin = new THREE.Group();
+  spin.name = "spin";
+  spin.position.y = 0.62;
+  for (let i = 0; i < 4; i++) {
+    const ang = (i / 4) * Math.PI * 2;
+    const ripple = new THREE.Mesh(
+      new THREE.TorusGeometry(0.28 + i * 0.08, 0.035, 4, 12),
+      mat(`${key}_rip${i}`, color, { transparent: true, opacity: 0.55, metalness: 0.2 }),
+    );
+    ripple.rotation.x = Math.PI / 2;
+    ripple.position.set(Math.cos(ang) * 0.15, 0.02 * i, Math.sin(ang) * 0.15);
+    spin.add(ripple);
+  }
+  const raft = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.2), mat(`${key}_raft`, accent));
+  raft.position.set(0.45, 0.08, 0);
+  spin.add(raft);
+  g.add(spin);
+  g.userData.spin = spin;
+  g.userData.spinSpeed = 1.15;
+
+  const spray = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 8, 8),
+    mat(`${key}_spray`, 0xa8d4f0, { transparent: true, opacity: 0.7 }),
+  );
+  spray.position.y = 1.45;
+  spray.name = "bob";
+  g.add(spray);
+  g.userData.bob = spray;
+  g.userData.bobAmp = 0.35;
+  g.userData.bobSpeed = 2.2;
+  g.userData.bobBaseY = 1.45;
   return g;
 }
 
-/** משחק ירי — דוכן עץ עם גג רעפים */
+/** משחק ירי — דוכן עץ עם מטרה מסתובבת ופרסים קופצים */
 function buildGame(mat: MatFn, key: string, color: number, accent: number, fw: number, fh: number): THREE.Group {
   const g = new THREE.Group();
   dressFantasyPlinth(g, mat, key, fw, fh);
@@ -368,11 +402,39 @@ function buildGame(mat: MatFn, key: string, color: number, accent: number, fw: n
   const counter = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.12, 0.28), mat(`${key}_ctr`, accent));
   counter.position.set(0, 0.75, 0.32);
   g.add(counter);
+
+  const spin = new THREE.Group();
+  spin.name = "spin";
+  spin.position.set(0, 1.05, 0.35);
+  const target = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.22, 0.06, 12),
+    mat(`${key}_tgt`, color),
+  );
+  target.rotation.x = Math.PI / 2;
+  const bull = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.08, 0.07, 10),
+    mat(`${key}_bull`, BANNER),
+  );
+  bull.rotation.x = Math.PI / 2;
+  bull.position.z = 0.01;
+  spin.add(target, bull);
+  g.add(spin);
+  g.userData.spin = spin;
+  g.userData.spinSpeed = 1.6;
+
+  const prizes = new THREE.Group();
+  prizes.name = "bob";
   for (let i = 0; i < 3; i++) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), mat(`${key}_pr${i}`, [BANNER, GOLD, color][i]!));
-    b.position.set(-0.3 + i * 0.3, 1.65, -0.15);
-    g.add(b);
+    b.position.set(-0.3 + i * 0.3, 0, -0.15);
+    prizes.add(b);
   }
+  prizes.position.y = 1.65;
+  g.add(prizes);
+  g.userData.bob = prizes;
+  g.userData.bobAmp = 0.12;
+  g.userData.bobSpeed = 2.4;
+  g.userData.bobBaseY = 1.65;
   return g;
 }
 
@@ -412,12 +474,18 @@ export function buildAttractionMesh(
   def: AttractionDef,
   mat: MatFn,
   broken: boolean,
+  tier = 1,
 ): THREE.Group {
-  const color = broken ? 0x7f1d1d : fantasyColor(def.color);
-  const accent = broken ? 0xb91c1c : fantasyColor(def.accent, 0.15);
+  const t = Math.max(1, Math.min(5, Math.floor(tier)));
+  const color = broken ? 0x7f1d1d : fantasyColor(def.color, t >= 4 ? 0.12 : 0.28);
+  const accent = broken
+    ? 0xb91c1c
+    : t >= 5
+      ? 0xf0abfc
+      : fantasyColor(def.accent, t >= 4 ? 0.05 : 0.15);
   const fw = def.footprint.w;
   const fh = def.footprint.h;
-  const key = `ride_${def.id}`;
+  const key = `ride_${def.id}_t${t}`;
   let g: THREE.Group;
   switch (def.shape) {
     case "coaster":
@@ -447,11 +515,117 @@ export function buildAttractionMesh(
     default:
       g = buildGeneric(mat, key, color, accent, fw, fh);
   }
+  dressTierGrandeur(g, mat, key, t, fw, fh, color, accent);
   g.userData.defId = def.id;
   g.userData.shape = def.shape;
   g.userData.broken = broken;
+  g.userData.tier = t;
+  // Faster motion at higher tiers
+  if (typeof g.userData.spinSpeed === "number") {
+    g.userData.spinSpeed *= 0.85 + t * 0.12;
+  }
+  if (typeof g.userData.bobSpeed === "number") {
+    g.userData.bobSpeed *= 0.9 + t * 0.08;
+  }
   addShadow(g);
   return g;
+}
+
+/**
+ * Each upgrade level looks more grandiose — height, ornaments, gold, lanterns —
+ * not just a higher number on the HUD.
+ */
+function dressTierGrandeur(
+  g: THREE.Group,
+  mat: MatFn,
+  key: string,
+  tier: number,
+  fw: number,
+  fh: number,
+  color: number,
+  accent: number,
+): void {
+  const scale = 1 + (tier - 1) * 0.1;
+  g.scale.setScalar(scale);
+
+  const w = fw * ISO_TILE * 0.95;
+  const d = fh * ISO_TILE * 0.95;
+
+  if (tier >= 2) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(Math.max(w, d) * 0.42, 0.04, 6, 20),
+      mat(`${key}_t2ring`, GOLD, { metalness: 0.55, roughness: 0.35 }),
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.42;
+    g.add(ring);
+  }
+
+  if (tier >= 3) {
+    for (let i = 0; i < 4; i++) {
+      const ang = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      const torch = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.05, 1.1, 5),
+        mat(`${key}_t3pole${i}`, WOOD),
+      );
+      torch.position.set(Math.cos(ang) * w * 0.55, 1.0, Math.sin(ang) * d * 0.55);
+      g.add(torch);
+      const flame = new THREE.Mesh(
+        new THREE.SphereGeometry(0.1, 8, 8),
+        mat(`${key}_t3fl${i}`, accent, { emissive: accent, emissiveIntensity: 0.45 }),
+      );
+      flame.position.set(Math.cos(ang) * w * 0.55, 1.65, Math.sin(ang) * d * 0.55);
+      g.add(flame);
+    }
+    const midRoof = new THREE.Mesh(
+      new THREE.ConeGeometry(0.55, 0.4, 6),
+      mat(`${key}_t3roof`, ROOF),
+    );
+    midRoof.position.y = 2.85;
+    g.add(midRoof);
+  }
+
+  if (tier >= 4) {
+    for (let i = 0; i < 6; i++) {
+      const ang = (i / 6) * Math.PI * 2;
+      const orb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 8, 8),
+        mat(`${key}_t4orb${i}`, color, { emissive: color, emissiveIntensity: 0.35, metalness: 0.3 }),
+      );
+      orb.position.set(Math.cos(ang) * w * 0.48, 2.2, Math.sin(ang) * d * 0.48);
+      g.add(orb);
+    }
+    const crown = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.35, 0.45, 0.22, 8),
+      mat(`${key}_t4crown`, GOLD, { metalness: 0.65, roughness: 0.3 }),
+    );
+    crown.position.y = 3.15;
+    g.add(crown);
+  }
+
+  if (tier >= 5) {
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2;
+      const spire = new THREE.Mesh(
+        new THREE.ConeGeometry(0.08, 0.55, 4),
+        mat(`${key}_t5sp${i}`, GOLD, { metalness: 0.7, roughness: 0.28 }),
+      );
+      spire.position.set(Math.cos(ang) * 0.35, 3.55, Math.sin(ang) * 0.35);
+      g.add(spire);
+      const crystal = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.12, 0),
+        mat(`${key}_t5cr${i}`, 0xf0abfc, { emissive: 0xf0abfc, emissiveIntensity: 0.5, metalness: 0.4 }),
+      );
+      crystal.position.set(Math.cos(ang) * w * 0.4, 2.55 + (i % 2) * 0.15, Math.sin(ang) * d * 0.4);
+      g.add(crystal);
+    }
+    const apex = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 10, 10),
+      mat(`${key}_t5apex`, 0xffe08a, { emissive: 0xffc857, emissiveIntensity: 0.6, metalness: 0.5 }),
+    );
+    apex.position.y = 3.85;
+    g.add(apex);
+  }
 }
 
 /** עדכון אנימציה למתקן (סיבוב / נדנוד / נפילה) */
