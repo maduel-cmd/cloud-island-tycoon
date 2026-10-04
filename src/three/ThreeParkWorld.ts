@@ -34,6 +34,7 @@ import {
   setTrashAmount,
   setWarehouseDoorOpen,
 } from "./ParkProps";
+import { createCirrusSkyTexture } from "./cirrusSky";
 
 /** Re-apply look once the still finishes loading (mesh may have been built earlier). */
 function ensureLook(
@@ -360,20 +361,49 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     root.add(m);
   }
 
-  // עננים רכים רחוקים (לא כדורים לבנים על האי)
+  // עננים רכים רחוקים — מחוץ לאזור הבנייה בלבד (לא מעל משטח המשחק)
   const cloudMat = new THREE.MeshStandardMaterial({
     color: 0xf2f0ea,
     transparent: true,
-    opacity: 0.55,
+    opacity: 0.5,
     roughness: 1,
   });
   for (let i = 0; i < 6; i++) {
     const c = new THREE.Mesh(new THREE.SphereGeometry(2.2 + (i % 3) * 0.6, 10, 10), cloudMat);
-    const ang = (i / 6) * Math.PI * 2;
-    c.position.set(Math.cos(ang) * 22, 8 + (i % 3), Math.sin(ang) * 22);
-    c.scale.set(2.2, 0.55, 1.4);
+    const ang = (i / 6) * Math.PI * 2 + 0.35;
+    c.position.set(Math.cos(ang) * 42, 14 + (i % 3) * 1.5, Math.sin(ang) * 42);
+    c.scale.set(2.4, 0.55, 1.5);
     root.add(c);
   }
+
+  // High sky cirrus — feather sheets in the sky only; never on the play surface
+  const cirrusCanvas = createCirrusSkyTexture();
+  const cirrusTex = new THREE.CanvasTexture(cirrusCanvas);
+  cirrusTex.colorSpace = THREE.SRGBColorSpace;
+  cirrusTex.wrapS = cirrusTex.wrapT = THREE.RepeatWrapping;
+  cirrusTex.needsUpdate = true;
+  const cirrusSkyMat = new THREE.MeshBasicMaterial({
+    map: cirrusTex,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const skyGroup = new THREE.Group();
+  scene.add(skyGroup);
+  for (let i = 0; i < 3; i++) {
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(140, 55), cirrusSkyMat.clone());
+    const ang = (i / 3) * Math.PI * 2 + 0.4;
+    sheet.position.set(Math.cos(ang) * 18, 38 + i * 4, Math.sin(ang) * 18);
+    sheet.rotation.x = -Math.PI / 2.35;
+    sheet.rotation.z = ang * 0.35 + i * 0.4;
+    skyGroup.add(sheet);
+  }
+  const veil = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), cirrusSkyMat.clone());
+  veil.position.set(0, 52, 0);
+  veil.rotation.x = -Math.PI / 2;
+  (veil.material as THREE.MeshBasicMaterial).opacity = 0.45;
+  skyGroup.add(veil);
 
   const tileMeshes = new Map<string, THREE.Object3D>();
   const entityMeshes = new Map<string, THREE.Object3D>();
@@ -398,8 +428,6 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
 
   const geoCache = {
     tile: new THREE.BoxGeometry(ISO_TILE * 0.98, 0.18, ISO_TILE * 0.98),
-    cloudTile: new THREE.BoxGeometry(ISO_TILE * 1.02, 0.22, ISO_TILE * 1.02),
-    cloudPuff: new THREE.SphereGeometry(0.52, 8, 6),
     box: new THREE.BoxGeometry(1, 1, 1),
     capsule: new THREE.CapsuleGeometry(0.18, 0.35, 4, 8),
     plane: new THREE.PlaneGeometry(0.95, 1.55),
@@ -651,28 +679,15 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       }
     }
 
-    // אזורים נעולים — דשא מעומעם + ערפל שקוף (רואים קרקע; ברור מה לא לבנייה)
+    // Unowned land — dim green meadow only (no white mist/puffs over the play surface).
+    // Distant/sky clouds stay elsewhere; Rotem: park must stay visible from default phone angle.
     if (cloudCells.length > 0) {
       const lockedGrassMat = mat("fog_grass", 0x4a6e3a, {
         roughness: 1,
         transparent: true,
         opacity: 0.55,
       });
-      const mistMat = mat("fog_mist", 0xd5e2ef, {
-        roughness: 1,
-        transparent: true,
-        opacity: 0.32,
-        depthWrite: false,
-      });
-      const puffMat = mat("fog_puff", 0xf4f7fb, {
-        roughness: 1,
-        transparent: true,
-        opacity: 0.28,
-        depthWrite: false,
-      });
       const grassInst = new THREE.InstancedMesh(geoCache.tile, lockedGrassMat, cloudCells.length);
-      const mistInst = new THREE.InstancedMesh(geoCache.cloudTile, mistMat, cloudCells.length);
-      const puffInst = new THREE.InstancedMesh(geoCache.cloudPuff, puffMat, cloudCells.length * 2);
       const dummy = new THREE.Object3D();
       cloudCells.forEach((c, i) => {
         dummy.position.set(c.wx, 0.04, c.wz);
@@ -680,27 +695,10 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
         dummy.rotation.set(0, 0, 0);
         dummy.updateMatrix();
         grassInst.setMatrixAt(i, dummy.matrix);
-
-        dummy.position.set(c.wx, 0.18, c.wz);
-        dummy.updateMatrix();
-        mistInst.setMatrixAt(i, dummy.matrix);
-
-        const h1 = 0.55 + (i % 5) * 0.08;
-        dummy.position.set(c.wx + ((i % 3) - 1) * 0.12, h1, c.wz + ((i % 2) - 0.5) * 0.1);
-        dummy.scale.setScalar(0.7 + (i % 4) * 0.1);
-        dummy.updateMatrix();
-        puffInst.setMatrixAt(i * 2, dummy.matrix);
-
-        dummy.position.set(c.wx - 0.15, h1 + 0.25, c.wz + 0.12);
-        dummy.scale.setScalar(0.5 + (i % 3) * 0.08);
-        dummy.updateMatrix();
-        puffInst.setMatrixAt(i * 2 + 1, dummy.matrix);
       });
       grassInst.instanceMatrix.needsUpdate = true;
-      mistInst.instanceMatrix.needsUpdate = true;
-      puffInst.instanceMatrix.needsUpdate = true;
       grassInst.receiveShadow = true;
-      fogCloudsGroup.add(grassInst, mistInst, puffInst);
+      fogCloudsGroup.add(grassInst);
     }
 
     // שער אבן — body changes at stages 2, 3, 4+ (not only at 4); flags animate
@@ -1332,13 +1330,20 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       window.removeEventListener("resize", onResize);
       for (const m of matCache.values()) m.dispose();
       geoCache.tile.dispose();
-      geoCache.cloudTile.dispose();
-      geoCache.cloudPuff.dispose();
       geoCache.box.dispose();
       geoCache.capsule.dispose();
       geoCache.plane.dispose();
       visitorTex?.dispose();
       meadowMat.map?.dispose();
+      cirrusTex.dispose();
+      cirrusSkyMat.dispose();
+      for (const child of skyGroup.children) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.geometry) mesh.geometry.dispose();
+        if (mesh.material && mesh.material !== cirrusSkyMat) {
+          (mesh.material as THREE.Material).dispose();
+        }
+      }
       renderer.dispose();
       if (renderer.domElement.parentElement === container) container.removeChild(renderer.domElement);
     },
