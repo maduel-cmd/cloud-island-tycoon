@@ -6,32 +6,51 @@ export interface GameAsset {
   type: "video_animation" | "sprite_image";
   src: string;
   loop?: boolean;
+  /** Optional local motion frames (PNG pack under looks/). */
+  frames?: readonly string[];
 }
 
+/** Local staff motion packs — replace empty video slots so prod never shows src="". */
+const JANITOR_FRAMES = [
+  "/assets/looks/staff/janitor/0.png",
+  "/assets/looks/staff/janitor/1.png",
+  "/assets/looks/staff/janitor/2.png",
+  "/assets/looks/staff/janitor/3.png",
+] as const;
+
+const MECHANIC_FRAMES = [
+  "/assets/looks/staff/mechanic/0.png",
+  "/assets/looks/staff/mechanic/1.png",
+  "/assets/looks/staff/mechanic/2.png",
+  "/assets/looks/staff/mechanic/3.png",
+] as const;
+
 export const GAME_ANIMATIONS: Record<string, GameAsset> = {
-  // אנימציה 1: עובד ניקיון ואשפה
+  // אנימציה 1: עובד ניקיון — local look motion frames (no empty video / googleusercontent)
   JANITOR_CLEANING: {
     id: "anim_janitor_cleaning",
     name: "Janitor Walking & Sweeping Trash",
-    type: "video_animation",
-    // מקור חיצוני מהקונספט; כשאין קובץ מקומי — AnimatedStaff לא מציג
-    src: "http://googleusercontent.com/generated_video_content/13103824751900569372",
+    type: "sprite_image",
+    src: JANITOR_FRAMES[0],
+    frames: JANITOR_FRAMES,
     loop: true,
   },
-  // אנימציה 2: טכנאי צועד (הכנה לקובץ הבא)
+  // אנימציה 2: טכנאי צועד
   MECHANIC_WALKING: {
     id: "anim_mechanic_walking",
     name: "Mechanic Walking to Broken Ride",
-    type: "video_animation",
-    src: "", // יוזן עם יצירת הסרטון הבא
+    type: "sprite_image",
+    src: MECHANIC_FRAMES[0],
+    frames: MECHANIC_FRAMES,
     loop: true,
   },
   // אנימציה 3: טכנאי מתקן מתקן
   MECHANIC_REPAIRING: {
     id: "anim_mechanic_repairing",
     name: "Mechanic Repairing Attraction",
-    type: "video_animation",
-    src: "", // יוזן עם יצירת הסרטון הבא
+    type: "sprite_image",
+    src: MECHANIC_FRAMES[0],
+    frames: MECHANIC_FRAMES,
     loop: true,
   },
 };
@@ -129,11 +148,13 @@ export function getStaticAsset(key: keyof typeof GAME_STATIC_ASSETS): GameAsset 
   return GAME_STATIC_ASSETS[key]!;
 }
 
-/** נכס מוכן לשימוש (יש src תקין שניתן לטעון בדפדפן) */
+/** נכס מוכן לשימוש (יש src תקין שניתן לטעון בדפדפן) — אין placeholder בפרוד */
 export function isAssetReady(asset: GameAsset): boolean {
   const src = asset.src?.trim() ?? "";
   if (!src) return false;
-  // כתובות placeholder מ־Gemini/usercontent לא נטענות במשחק
-  if (src.includes("googleusercontent.com/generated_")) return false;
+  // Empty / concept placeholders must never render in prod (AnimatedStaff returns null)
+  if (src.includes("googleusercontent.com")) return false;
+  if (src.startsWith("http://googleusercontent") || src.startsWith("https://googleusercontent")) return false;
+  if (src.includes("placeholder") || src.includes("about:blank")) return false;
   return true;
 }

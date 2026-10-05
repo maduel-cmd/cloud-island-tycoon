@@ -254,6 +254,7 @@ export function applyLookBillboard(
 
   // Hide procedural body — look is the silhouette; motion runs on the billboard.
   // Keep lookTier* accents visible so upgrades still show a body change.
+  // Prod rule: once hasLookImage is set, procedural meshes must stay hidden.
   g.traverse((c) => {
     if (c === g || c === plane) return;
     if (c.name.startsWith("lookTier")) {
@@ -263,6 +264,7 @@ export function applyLookBillboard(
     if ((c as THREE.Mesh).isMesh) c.visible = false;
   });
   plane.visible = true;
+  g.userData.hideProceduralForLook = true;
 
   g.userData.lookKind = kind;
   g.userData.lookId = id;

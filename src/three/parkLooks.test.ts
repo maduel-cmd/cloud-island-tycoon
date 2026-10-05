@@ -39,25 +39,25 @@ describe("parkLooks image wiring", () => {
     assert.ok(LOOK_CATALOG.some((e) => e.kind === "stall" && e.id === "balloon_vendor"));
   });
 
-  it("skips motion packs for inverted coaster only; mini railway is wired", () => {
-    assert.equal(shouldSkipMotion("inverted_coaster"), true);
+  it("wires motion for inverted coaster and mini railway; MOTION_SKIP stays empty", () => {
+    assert.equal(shouldSkipMotion("inverted_coaster"), false);
     assert.equal(shouldSkipMotion("mini_railway"), false);
     assert.equal(shouldSkipMotion("gate"), false);
     assert.equal(shouldSkipMotion("sky_coaster"), false);
-    assert.ok(MOTION_SKIP_IDS.has("inverted_coaster"));
-    assert.equal(MOTION_SKIP_IDS.has("mini_railway"), false);
+    assert.equal(MOTION_SKIP_IDS.size, 0);
     for (let f = 0; f < 4; f++) {
       assert.ok(existsSync(`public/assets/looks/attraction/mini_railway/${f}.png`));
+      assert.ok(existsSync(`public/assets/looks/attraction/inverted_coaster/${f}.png`));
     }
   });
 
-  it("ships four motion frames for wired looks and none for skipped", () => {
+  it("ships four motion frames for every wired look (skip set empty or no pack)", () => {
     for (const { kind, id } of LOOK_CATALOG) {
       if (shouldSkipMotion(id)) {
         assert.equal(
           existsSync(`public/assets/looks/${kind}/${id}/0.png`),
           false,
-          `${id} must not have a motion pack`,
+          `${id} must not have a motion pack while skipped`,
         );
         continue;
       }

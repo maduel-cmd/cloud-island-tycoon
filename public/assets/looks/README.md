@@ -24,6 +24,7 @@ Ids match the game catalog (`sky_coaster`, `balloon_vendor`, `inverted_coaster`,
 
 Gate still: two openings + beam + two flags (`prop/gate.png`); motion pack waves the flags.
 Inverted coaster still: car hangs under the track (`attraction/inverted_coaster.png`);
-no motion pack (sheet had only one matching hang frame).
+motion pack = subtle hang-sway derived from that still (`attraction/inverted_coaster/{0..3}.png`).
 Mini railway: motion pack from replacement 2x2 sheet (`attraction/mini_railway/{0..3}.png`).
 Broken rides freeze on frame `0.png`.
+Staff overlays: `GAME_ANIMATIONS` cycles `staff/<role>/{0..3}.png` (no empty video src).

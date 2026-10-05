@@ -7,7 +7,7 @@ import type { Simulation } from "../managers/Simulation";
 import type { GridPos } from "../data/types";
 import { getAttraction } from "../data/attractions";
 import { getStall } from "../data/stalls";
-import { gridToWorld, pixelToWorld, worldToGrid, gridWorldBounds, ISO_TILE } from "./isoMath";
+import { gridToWorld, pixelToWorld, worldToGrid, gridWorldBounds, ISO_TILE, TILE_MESH_SCALE } from "./isoMath";
 import { VISITOR_SHEET } from "../assets/sprites/VisitorSheet";
 import { GAME_STATIC_ASSETS } from "../config/assets";
 import {
@@ -214,15 +214,23 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     roughness: 0.95,
     flatShading: true,
   });
-  const mossMat = new THREE.MeshStandardMaterial({
-    color: 0x3d6b28,
-    roughness: 0.9,
-    flatShading: true,
-  });
+  /** Flat meadow kept for zone tint bookkeeping; soft mat is what rim/mounds use. */
   const meadowMat = new THREE.MeshStandardMaterial({
     color: 0x5f9e3a,
     roughness: 0.95,
     flatShading: true,
+  });
+  /** Soft meadow for rim mounds — denser geo + smooth shading so they don't read as low-poly balls next to looks. */
+  const meadowSoftMat = new THREE.MeshStandardMaterial({
+    color: 0x5f9e3a,
+    roughness: 0.92,
+    metalness: 0.02,
+    flatShading: false,
+  });
+  const mossSoftMat = new THREE.MeshStandardMaterial({
+    color: 0x3d6b28,
+    roughness: 0.9,
+    flatShading: false,
   });
   // טקסטורת אחו פרוצדורלית (ווריאציה עדינה)
   {
@@ -251,6 +259,8 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
       tex.magFilter = THREE.LinearFilter;
       meadowMat.map = tex;
       meadowMat.needsUpdate = true;
+      meadowSoftMat.map = tex;
+      meadowSoftMat.needsUpdate = true;
     }
   }
 
@@ -262,7 +272,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   root.add(islandBase);
 
   // משטח אחו ירוק על גג האי (כיסוי מלא — לא אבן אפורה חשופה)
-  const meadow = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 0.35, 28), meadowMat);
+  const meadow = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 0.35, 48), meadowSoftMat);
   meadow.position.y = -0.05;
   meadow.receiveShadow = true;
   root.add(meadow);
@@ -280,12 +290,14 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
   cloudSea.position.y = -1.35;
   root.add(cloudSea);
 
-  // שפת אחו מורמת / גבעות קטנות
+  // שפת אחו מורמת / גבעות — denser spheres on island rim only (outside buildable core)
   for (let i = 0; i < 8; i++) {
-    const mound = new THREE.Mesh(new THREE.SphereGeometry(1.8 + (i % 3) * 0.4, 8, 6), meadowMat);
+    const mound = new THREE.Mesh(new THREE.SphereGeometry(1.8 + (i % 3) * 0.4, 32, 24), meadowSoftMat);
     const ang = (i / 8) * Math.PI * 2;
-    mound.position.set(Math.cos(ang) * 10.5, 0.15, Math.sin(ang) * 10.5);
-    mound.scale.set(1.6, 0.28, 1.3);
+    mound.name = `meadowMound_${i}`;
+    // Rim-only (~12.2) so mounds don't compete with high-tier look billboards in the playable core
+    mound.position.set(Math.cos(ang) * 12.2, 0.08, Math.sin(ang) * 12.2);
+    mound.scale.set(1.55, 0.22, 1.25);
     mound.receiveShadow = true;
     root.add(mound);
   }
@@ -310,10 +322,11 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
 
   // כתמי אזוב על שפת האי
   for (let i = 0; i < 10; i++) {
-    const patch = new THREE.Mesh(new THREE.SphereGeometry(0.9 + (i % 3) * 0.25, 6, 6), mossMat);
+    const patch = new THREE.Mesh(new THREE.SphereGeometry(0.9 + (i % 3) * 0.25, 24, 16), mossSoftMat);
     const ang = (i / 10) * Math.PI * 2;
-    patch.position.set(Math.cos(ang) * 13.2, -0.35, Math.sin(ang) * 13.2);
-    patch.scale.set(1.4, 0.35, 1.1);
+    patch.name = `mossPatch_${i}`;
+    patch.position.set(Math.cos(ang) * 13.4, -0.4, Math.sin(ang) * 13.4);
+    patch.scale.set(1.4, 0.32, 1.1);
     root.add(patch);
   }
 
@@ -426,8 +439,12 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     });
   }
 
+  /**
+   * Slight overlap (>1) closes diamond-grid seams; 0.98 left visible meadow gaps between raised path tiles.
+   * Keep in sync with TILE_MESH_SCALE export used by tests.
+   */
   const geoCache = {
-    tile: new THREE.BoxGeometry(ISO_TILE * 0.98, 0.18, ISO_TILE * 0.98),
+    tile: new THREE.BoxGeometry(ISO_TILE * TILE_MESH_SCALE, 0.18, ISO_TILE * TILE_MESH_SCALE),
     box: new THREE.BoxGeometry(1, 1, 1),
     capsule: new THREE.CapsuleGeometry(0.18, 0.35, 4, 8),
     plane: new THREE.PlaneGeometry(0.95, 1.55),
@@ -482,6 +499,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     if (tier === 0) {
       TILE_COLORS.grass = 0x5f9e3a;
       meadowMat.color.set(0x5f9e3a);
+      meadowSoftMat.color.set(0x5f9e3a);
       scene.background = new THREE.Color("#87b8dc");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#c5dceb");
@@ -494,6 +512,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     } else if (tier === 1) {
       TILE_COLORS.grass = 0x58b03a;
       meadowMat.color.set(0x58b03a);
+      meadowSoftMat.color.set(0x58b03a);
       scene.background = new THREE.Color("#7aafd4");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#b8d4e8");
@@ -505,6 +524,7 @@ export function mountThreePark(container: HTMLElement): ThreeParkHandle {
     } else {
       TILE_COLORS.grass = 0x4aa84a;
       meadowMat.color.set(0x4aa84a);
+      meadowSoftMat.color.set(0x4aa84a);
       scene.background = new THREE.Color("#6a9ec8");
       if (scene.fog instanceof THREE.FogExp2) {
         scene.fog.color.set("#a8c8dc");

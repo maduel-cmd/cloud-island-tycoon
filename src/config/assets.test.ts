@@ -7,10 +7,14 @@ import {
 } from "./assets.ts";
 
 describe("asset bank config", () => {
-  it("registers janitor / mechanic animation slots", () => {
+  it("registers janitor / mechanic animation slots on local look frames", () => {
     assert.equal(GAME_ANIMATIONS.JANITOR_CLEANING?.id, "anim_janitor_cleaning");
-    assert.equal(GAME_ANIMATIONS.MECHANIC_WALKING?.src, "");
-    assert.equal(GAME_ANIMATIONS.MECHANIC_REPAIRING?.type, "video_animation");
+    assert.equal(GAME_ANIMATIONS.MECHANIC_WALKING?.type, "sprite_image");
+    assert.equal(GAME_ANIMATIONS.MECHANIC_REPAIRING?.type, "sprite_image");
+    assert.ok(GAME_ANIMATIONS.JANITOR_CLEANING?.src.includes("/assets/looks/staff/janitor/"));
+    assert.ok(GAME_ANIMATIONS.MECHANIC_WALKING?.src.includes("/assets/looks/staff/mechanic/"));
+    assert.equal(GAME_ANIMATIONS.JANITOR_CLEANING?.frames?.length, 4);
+    assert.equal(GAME_ANIMATIONS.MECHANIC_REPAIRING?.frames?.length, 4);
   });
 
   it("points static concept art at local public files", () => {
@@ -30,8 +34,19 @@ describe("asset bank config", () => {
     assert.equal(isAssetReady(GAME_STATIC_ASSETS.FAB_QUESTS!), true);
   });
 
-  it("treats empty and generated placeholder URLs as not ready", () => {
-    assert.equal(isAssetReady(GAME_ANIMATIONS.MECHANIC_WALKING!), false);
-    assert.equal(isAssetReady(GAME_ANIMATIONS.JANITOR_CLEANING!), false);
+  it("treats staff anims as ready; rejects empty / googleusercontent placeholders", () => {
+    assert.equal(isAssetReady(GAME_ANIMATIONS.MECHANIC_WALKING!), true);
+    assert.equal(isAssetReady(GAME_ANIMATIONS.JANITOR_CLEANING!), true);
+    assert.equal(GAME_ANIMATIONS.JANITOR_CLEANING!.src.includes("googleusercontent"), false);
+    assert.equal(isAssetReady({ id: "x", name: "x", type: "sprite_image", src: "" }), false);
+    assert.equal(
+      isAssetReady({
+        id: "x",
+        name: "x",
+        type: "video_animation",
+        src: "https://lh3.googleusercontent.com/foo",
+      }),
+      false,
+    );
   });
 });
