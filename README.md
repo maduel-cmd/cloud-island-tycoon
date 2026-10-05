@@ -24,8 +24,16 @@ npm run dev
 | `npm run dev` | שרת פיתוח (Vite) |
 | `npm run build` | בנייה לפרודקשן |
 | `npm run preview` | תצוגה מקדימה של הבילד |
-| `npm test` | בדיקות יחידה |
+| `npm test` | בדיקות יחידה (כולל assets QA) |
+| `npm run qa:assets` | בדיקת נכסים בלבד — קיום + גודל מינימלי ל־looks/סטטיים |
 | `npm run typecheck` | בדיקת TypeScript |
+
+## גרפיקה — הערות QA מהירות
+
+- **תפרי שביל/אריח:** `TILE_MESH_SCALE` ב־`src/three/isoMath.ts` (≥1, כרגע `1.02`) סוגר רווחים בין אריחים מורמים; אל תחזירו `0.98`.
+- **גבעות אחו:** mesh צפוף + shading חלק בשפת האי; לא כדורים low-poly ליד looks.
+- **אין placeholder בפרוד:** `isAssetReady` דוחה src ריק / `googleusercontent`; אנימציות צוות בלי קובץ מקומי לא מוצגות (`AnimatedStaff` → `null`). looks מועדפים על mesh פרוצדורלי כש־still נטען.
+- **אל תמחקו** קבצים תחת `public/assets/looks/`.
 
 ## מה כלול
 

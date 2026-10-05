@@ -13,7 +13,8 @@ interface AnimatedStaffProps {
 
 /**
  * שכבת וידאו לצוות (מנקה / טכנאי) — נטענת מ־GAME_ANIMATIONS.
- * בלי src תקין לא מרנדרים (fallback לציור Canvas ב־ParkRenderer).
+ * בלי src מקומי מוכן (`isAssetReady`) לא מרנדרים — אין googleusercontent / placeholder בפרוד.
+ * Fallback: ציור Canvas / look billboard ב־ParkRenderer / ThreeParkWorld.
  */
 export function AnimatedStaff({
   type,

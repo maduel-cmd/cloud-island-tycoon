@@ -2,6 +2,12 @@
 
 export const ISO_TILE = 1.05;
 
+/**
+ * Ground tile mesh scale relative to ISO_TILE.
+ * Slight overlap (>1) closes diamond-grid seams; values <1 (e.g. 0.98) leave visible gaps.
+ */
+export const TILE_MESH_SCALE = 1.02;
+
 /** מרכז אריח (gx, gy) בעולם Three.js */
 export function gridToWorld(gx: number, gy: number, y = 0): { x: number; y: number; z: number } {
   const a = ISO_TILE * 0.5;

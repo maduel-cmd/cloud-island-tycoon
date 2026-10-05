@@ -9,13 +9,12 @@ export interface GameAsset {
 }
 
 export const GAME_ANIMATIONS: Record<string, GameAsset> = {
-  // אנימציה 1: עובד ניקיון ואשפה
+  // אנימציה 1: עובד ניקיון ואשפה — local video TBD; empty = not shown in prod
   JANITOR_CLEANING: {
     id: "anim_janitor_cleaning",
     name: "Janitor Walking & Sweeping Trash",
     type: "video_animation",
-    // מקור חיצוני מהקונספט; כשאין קובץ מקומי — AnimatedStaff לא מציג
-    src: "http://googleusercontent.com/generated_video_content/13103824751900569372",
+    src: "",
     loop: true,
   },
   // אנימציה 2: טכנאי צועד (הכנה לקובץ הבא)
@@ -23,7 +22,7 @@ export const GAME_ANIMATIONS: Record<string, GameAsset> = {
     id: "anim_mechanic_walking",
     name: "Mechanic Walking to Broken Ride",
     type: "video_animation",
-    src: "", // יוזן עם יצירת הסרטון הבא
+    src: "",
     loop: true,
   },
   // אנימציה 3: טכנאי מתקן מתקן
@@ -31,7 +30,7 @@ export const GAME_ANIMATIONS: Record<string, GameAsset> = {
     id: "anim_mechanic_repairing",
     name: "Mechanic Repairing Attraction",
     type: "video_animation",
-    src: "", // יוזן עם יצירת הסרטון הבא
+    src: "",
     loop: true,
   },
 };
@@ -129,11 +128,13 @@ export function getStaticAsset(key: keyof typeof GAME_STATIC_ASSETS): GameAsset 
   return GAME_STATIC_ASSETS[key]!;
 }
 
-/** נכס מוכן לשימוש (יש src תקין שניתן לטעון בדפדפן) */
+/** נכס מוכן לשימוש (יש src תקין שניתן לטעון בדפדפן) — אין placeholder בפרוד */
 export function isAssetReady(asset: GameAsset): boolean {
   const src = asset.src?.trim() ?? "";
   if (!src) return false;
-  // כתובות placeholder מ־Gemini/usercontent לא נטענות במשחק
-  if (src.includes("googleusercontent.com/generated_")) return false;
+  // Empty / concept placeholders must never render in prod (AnimatedStaff returns null)
+  if (src.includes("googleusercontent.com")) return false;
+  if (src.startsWith("http://googleusercontent") || src.startsWith("https://googleusercontent")) return false;
+  if (src.includes("placeholder") || src.includes("about:blank")) return false;
   return true;
 }

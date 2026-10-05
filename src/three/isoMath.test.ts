@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { gridToWorld, worldToGrid, gridWorldBounds, ISO_TILE } from "./isoMath.ts";
+import { gridToWorld, worldToGrid, gridWorldBounds, ISO_TILE, TILE_MESH_SCALE } from "./isoMath.ts";
 
 describe("isoMath grid ↔ world", () => {
   it("round-trips integer grid cells", () => {
@@ -19,6 +19,12 @@ describe("isoMath grid ↔ world", () => {
 
   it("uses a stable tile size", () => {
     assert.ok(ISO_TILE > 0.5 && ISO_TILE < 2);
+  });
+
+  it("tile mesh scale overlaps enough to close path/hex seams", () => {
+    // Historical 0.98 left visible meadow gaps between raised path tiles
+    assert.ok(TILE_MESH_SCALE >= 1.0, "TILE_MESH_SCALE must be >= 1 to avoid seam gaps");
+    assert.ok(TILE_MESH_SCALE <= 1.08, "TILE_MESH_SCALE should stay modest to avoid z-fight");
   });
 
   it("gridWorldBounds covers all corners of the map", () => {

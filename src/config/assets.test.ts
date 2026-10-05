@@ -33,5 +33,7 @@ describe("asset bank config", () => {
   it("treats empty and generated placeholder URLs as not ready", () => {
     assert.equal(isAssetReady(GAME_ANIMATIONS.MECHANIC_WALKING!), false);
     assert.equal(isAssetReady(GAME_ANIMATIONS.JANITOR_CLEANING!), false);
+    assert.equal(GAME_ANIMATIONS.JANITOR_CLEANING!.src, "");
+    assert.equal(GAME_ANIMATIONS.JANITOR_CLEANING!.src.includes("googleusercontent"), false);
   });
 });
