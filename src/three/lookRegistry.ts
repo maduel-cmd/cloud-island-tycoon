@@ -10,11 +10,9 @@ export const LOOK_SKIP_IDS: ReadonlySet<string> = new Set([
 
 /**
  * Motion-frame packs under public/assets/looks/<kind>/<id>/{0..3}.png.
- * Skipped: inverted_coaster (only 1/4 frames match approved hang).
+ * Empty — inverted_coaster now ships a hang-sway pack derived from the approved still.
  */
-export const MOTION_SKIP_IDS: ReadonlySet<string> = new Set([
-  "inverted_coaster",
-]);
+export const MOTION_SKIP_IDS: ReadonlySet<string> = new Set([]);
 
 export function shouldSkipMotion(id: string): boolean {
   return MOTION_SKIP_IDS.has(id);

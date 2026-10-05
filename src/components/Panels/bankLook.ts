@@ -1,6 +1,8 @@
 /**
  * Resolve Build Bank card ids → existing look stills under public/assets/looks.
  * Does not invent chrome icons or new ride art — only maps to shipped files.
+ * IsoThumb SVG silhouettes are last-resort only when this returns null (e.g. parking)
+ * or the bank-look PNG fails to load — never prefer SVG when a look is shipped.
  */
 export type BankLookKind = "attraction" | "stall" | "prop" | "staff";
 

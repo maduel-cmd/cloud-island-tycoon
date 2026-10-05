@@ -50,12 +50,14 @@ describe("build bank look thumbs", () => {
     }
   });
 
-  it("does not invent inverted_coaster motion frames; park still stays separate", () => {
-    assert.equal(existsSync("public/assets/looks/attraction/inverted_coaster/0.png"), false);
+  it("ships inverted_coaster hang-sway motion; bank thumb stays separate RGBA", () => {
+    for (let f = 0; f < 4; f++) {
+      assert.ok(existsSync(`public/assets/looks/attraction/inverted_coaster/${f}.png`));
+    }
     assert.ok(existsSync("public/assets/looks/attraction/inverted_coaster.png"));
     assert.ok(existsSync("public/assets/ui/bank-looks/attraction/inverted_coaster.png"));
     assert.ok(pngIsRgba("/assets/ui/bank-looks/attraction/inverted_coaster.png"));
-    // Park still must remain RGB (color type 2), not rewritten
+    // Park still must remain RGB (color type 2), not rewritten as bank RGBA
     const park = readFileSync("public/assets/looks/attraction/inverted_coaster.png");
     assert.equal(park.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
     assert.equal(park[25], 2, "park inverted still must stay RGB");

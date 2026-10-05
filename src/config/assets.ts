@@ -6,31 +6,51 @@ export interface GameAsset {
   type: "video_animation" | "sprite_image";
   src: string;
   loop?: boolean;
+  /** Optional local motion frames (PNG pack under looks/). */
+  frames?: readonly string[];
 }
 
+/** Local staff motion packs — replace empty video slots so prod never shows src="". */
+const JANITOR_FRAMES = [
+  "/assets/looks/staff/janitor/0.png",
+  "/assets/looks/staff/janitor/1.png",
+  "/assets/looks/staff/janitor/2.png",
+  "/assets/looks/staff/janitor/3.png",
+] as const;
+
+const MECHANIC_FRAMES = [
+  "/assets/looks/staff/mechanic/0.png",
+  "/assets/looks/staff/mechanic/1.png",
+  "/assets/looks/staff/mechanic/2.png",
+  "/assets/looks/staff/mechanic/3.png",
+] as const;
+
 export const GAME_ANIMATIONS: Record<string, GameAsset> = {
-  // אנימציה 1: עובד ניקיון ואשפה — local video TBD; empty = not shown in prod
+  // אנימציה 1: עובד ניקיון — local look motion frames (no empty video / googleusercontent)
   JANITOR_CLEANING: {
     id: "anim_janitor_cleaning",
     name: "Janitor Walking & Sweeping Trash",
-    type: "video_animation",
-    src: "",
+    type: "sprite_image",
+    src: JANITOR_FRAMES[0],
+    frames: JANITOR_FRAMES,
     loop: true,
   },
-  // אנימציה 2: טכנאי צועד (הכנה לקובץ הבא)
+  // אנימציה 2: טכנאי צועד
   MECHANIC_WALKING: {
     id: "anim_mechanic_walking",
     name: "Mechanic Walking to Broken Ride",
-    type: "video_animation",
-    src: "",
+    type: "sprite_image",
+    src: MECHANIC_FRAMES[0],
+    frames: MECHANIC_FRAMES,
     loop: true,
   },
   // אנימציה 3: טכנאי מתקן מתקן
   MECHANIC_REPAIRING: {
     id: "anim_mechanic_repairing",
     name: "Mechanic Repairing Attraction",
-    type: "video_animation",
-    src: "",
+    type: "sprite_image",
+    src: MECHANIC_FRAMES[0],
+    frames: MECHANIC_FRAMES,
     loop: true,
   },
 };
