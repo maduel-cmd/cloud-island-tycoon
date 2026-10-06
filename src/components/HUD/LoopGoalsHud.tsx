@@ -23,7 +23,13 @@ export function LoopGoalsHud() {
 
   const allDone = goals.path && goals.ride && goals.stockedStall;
   const clockHeld = store.bootstrapClockHeld();
-  if (allDone && !clockHeld) return null;
+  const starterRidePlaced = store.attractions.some(
+    (a) => a.defId === store.starterKit.attractionId,
+  );
+  // Only hint about path-connect while that step is actually required
+  const showWaitingConnect =
+    !store.gameOver && !store.daySummary && starterRidePlaced && clockHeld;
+  if (allDone && !showWaitingConnect) return null;
 
   const rows: { id: keyof typeof goals; label: string; done: boolean }[] = [
     { id: "path", label: t("goalPath"), done: goals.path },
@@ -56,7 +62,7 @@ export function LoopGoalsHud() {
             </li>
           ))}
         </ul>
-        {clockHeld && (
+        {showWaitingConnect && (
           <p className="mt-1.5 text-[10px] text-[color:var(--wow-muted)]">{t("goalsClockHint")}</p>
         )}
       </div>

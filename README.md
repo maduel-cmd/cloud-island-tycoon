@@ -93,16 +93,13 @@ public/assets/looks/
 
 ## מקור Git
 
-ריפו ייעודי: https://github.com/maduel-cmd/cloud-island-tycoon  
-
-שיבוט מיידי (גם לפני שהריפו ב־GitHub מלא):
+ריפו ייעודי: https://github.com/maduel-cmd/cloud-island-tycoon
 
 ```bash
-git clone https://cloud-island-tycoon-maduel.netlify.app/repo.git
+git clone https://github.com/maduel-cmd/cloud-island-tycoon.git
+cd cloud-island-tycoon
+npm install
+npm run dev
 ```
 
-ZIP: https://cloud-island-tycoon-maduel.netlify.app/download/cloud-island-tycoon-source.zip  
-
-ענף זמני ב־TrailLink: [`standalone/cloud-island-tycoon`](https://github.com/maduel-cmd/TrailLink/tree/standalone/cloud-island-tycoon)  
-
-פירוט הוצאה / דחיפה: [`docs/STANDALONE_EXTRACT_he.md`](docs/STANDALONE_EXTRACT_he.md)
+פירוט הוצאה מהמונוריפו: [`docs/STANDALONE_EXTRACT_he.md`](docs/STANDALONE_EXTRACT_he.md)

@@ -29,16 +29,20 @@ export function TopBar() {
   const minute = Math.floor((timeOfDay % 1) * 60);
   const wage = nightWageCost();
   const clockHeld = bootstrapClockHeld();
+  // Show "waiting to connect" only while a path link is actually required —
+  // hide when day ended / game over (offline) or ride not placed yet.
+  const starterRidePlaced = attractions.some(
+    (a) => a.defId === starterKit.attractionId,
+  );
+  const showWaitingConnect =
+    !gameOver && !daySummary && starterRidePlaced && clockHeld;
 
   let nextStep = t("nextStepPath");
   if (!hasOutboundPathFromGate()) {
     nextStep = t("nextStepPath");
   } else if (starterKit.attractionLeft > 0) {
     nextStep = t("nextStepCarousel");
-  } else if (
-    attractions.some((a) => a.defId === starterKit.attractionId) &&
-    bootstrapClockHeld()
-  ) {
+  } else if (starterRidePlaced && clockHeld) {
     nextStep = t("nextStepConnect");
   } else if (starterKit.stallLeft > 0) {
     nextStep = t("nextStepStall");
@@ -99,8 +103,8 @@ export function TopBar() {
               <div className="cit-label">
                 {t("day")} {day}
               </div>
-              <div className="cit-num text-[13px]">
-                {clockHeld
+              <div className="cit-num text-[13px]" data-testid="clock-display">
+                {showWaitingConnect
                   ? t("clockHeld")
                   : `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`}
               </div>
